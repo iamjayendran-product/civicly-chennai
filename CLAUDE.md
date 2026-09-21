@@ -8,9 +8,13 @@ Metropolitan Area (CMDA); reports appear live on a public map for everyone.
 Read it before starting any feature. If a change contradicts the spec, update the spec
 in the same PR (or ask first).
 
+@AGENTS.md
+
 ## Stack
 
-- Next.js (App Router) + TypeScript (strict) + Tailwind CSS — `src/`
+- Next.js 16 (App Router) + React 19 + TypeScript (strict) + Tailwind CSS v4 — `src/`
+  (Next 16 differs from older versions: check `node_modules/next/dist/docs/` before
+  using an API, per AGENTS.md)
 - Supabase: Postgres + PostGIS, Realtime, Storage, Auth — `supabase/`
 - MapLibre GL JS + OpenStreetMap vector tiles
 - Vitest (unit), pgTAP (database), Playwright (e2e)
@@ -24,9 +28,9 @@ npm run lint           # ESLint
 npm run typecheck      # tsc --noEmit
 npm test               # Vitest
 npm run test:e2e       # Playwright (needs local Supabase running)
-npx supabase start     # local Supabase (requires Docker Desktop)
-npx supabase db reset  # re-apply migrations + seed
-npx supabase test db   # pgTAP tests
+npm run db:start       # local Supabase (requires Docker Desktop)
+npm run db:reset       # re-apply migrations + seed
+npm run db:test        # pgTAP tests
 npm run db:types       # regenerate src/lib/supabase/database.types.ts
 ```
 
