@@ -350,7 +350,18 @@ deleting storage objects older than 24 h with no `report_photos` row.
 
 ## 12. Open Items (decide during implementation, not blocking)
 
-- Source for the CMDA boundary polygon (CMDA/OSM relation) and simplification tolerance.
-- Specific in-browser blur model (MediaPipe face detector + a plate detector); if no
-  reliable plate model fits the size budget, ship face blur only and note it.
-- Map tile provider key (MapTiler vs self-hosted Protomaps PMTiles).
+- ~~Source for the CMDA boundary polygon~~ **Resolved:** fetch the CMDA/Chennai
+  Metropolitan Area relation from OpenStreetMap via the Overpass API, simplify it, and
+  commit the resulting GeoJSON as a seed fixture (`supabase/seed.sql` / a companion data
+  file).
+- ~~Specific in-browser blur model~~ **Resolved:** ship with a MediaPipe face detector
+  only. No maintained, production-ready client-side license-plate detection library
+  exists (checked 2026-09-21 — only small unmaintained YOLO→TFJS repos with no
+  accuracy/licensing guarantees, unacceptable for a privacy-critical path). Plate
+  detection is a tracked follow-up once a vetted model exists. This still uses the
+  spec's own fallback: `report_photos.blurred` reflects per-photo blur success/failure.
+- ~~Map tile provider key~~ **Resolved:** MapTiler free tier
+  (`NEXT_PUBLIC_MAP_STYLE_URL`). Requires a MapTiler account/API key before production;
+  local dev may use MapLibre's shared public demo style key as a placeholder.
+- Cloudflare Turnstile also needs a real site key before production; local dev uses
+  Cloudflare's published test sitekey (`1x00000000000000000000AA`, always passes).
