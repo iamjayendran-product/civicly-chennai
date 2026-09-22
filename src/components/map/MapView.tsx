@@ -13,7 +13,7 @@ import type { Database } from '@/lib/supabase/database.types';
 
 type Category = Database['public']['Enums']['report_category'];
 
-const DEFAULT_MAP_STYLE_URL = 'https://api.maptiler.com/maps/streets-v2/style.json?key=get_your_own_OpKXcHfvzZbdqZoLD5wf';
+const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
 
 const SOURCE_ID = 'reports';

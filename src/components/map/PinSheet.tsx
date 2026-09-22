@@ -20,7 +20,7 @@ export function PinSheet({ report, onClose }: PinSheetProps) {
       <h2 className="text-lg font-semibold">{subtypeLabel ?? categoryLabel}</h2>
       {report.note && <p className="mt-1 text-sm text-gray-700">{report.note}</p>}
       <p className="mt-2 text-xs text-gray-500">
-        {report.status === 'fixed' ? 'Fixed' : 'Open'} · {report.upvoteCount} +1
+        {t(report.status === 'fixed' ? 'report.status.fixed' : 'report.status.open')} · {report.upvoteCount} +1
       </p>
     </div>
   );

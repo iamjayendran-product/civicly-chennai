@@ -31,5 +31,7 @@
   "map.filters.showFixed": "Show fixed",
   "map.status.live": "Live",
   "map.status.paused": "Live updates paused",
-  "map.pin.reportedAgo": "Reported {{time}} ago"
+  "map.pin.reportedAgo": "Reported {{time}} ago",
+  "report.status.fixed": "Fixed",
+  "report.status.open": "Open"
 }
