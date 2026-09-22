@@ -2335,7 +2335,7 @@ export function PinSheet({ report, onClose }: PinSheetProps) {
       <h2 className="text-lg font-semibold">{subtypeLabel ?? categoryLabel}</h2>
       {report.note && <p className="mt-1 text-sm text-gray-700">{report.note}</p>}
       <p className="mt-2 text-xs text-gray-500">
-        {report.status === 'fixed' ? 'Fixed' : 'Open'} · {report.upvoteCount} +1
+        {t(report.status === 'fixed' ? 'report.status.fixed' : 'report.status.open')} · {report.upvoteCount} +1
       </p>
     </div>
   );
@@ -2361,7 +2361,7 @@ import type { Database } from '@/lib/supabase/database.types';
 
 type Category = Database['public']['Enums']['report_category'];
 
-const DEFAULT_MAP_STYLE_URL = 'https://api.maptiler.com/maps/streets-v2/style.json?key=get_your_own_OpKXcHfvzZbdqZoLD5wf';
+const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
 
 const SOURCE_ID = 'reports';
@@ -2515,7 +2515,7 @@ Expected: no errors. (MapLibre ships its own TypeScript types; no `@types` packa
 
 - [ ] **Step 7: Manual smoke test**
 
-Run: `npm run dev`, open `http://localhost:3000`, and confirm the map renders centered on Chennai, bounded to the CMDA extent (panning stops at the edges), with the filter chips visible. If `NEXT_PUBLIC_MAP_STYLE_URL` is unset in `.env.local`, the map uses MapLibre's shared public demo style key — ask the user for a real MapTiler key before this ships past local dev.
+Run: `npm run dev`, open `http://localhost:3000`, and confirm the map renders centered on Chennai, bounded to the CMDA extent (panning stops at the edges), with the filter chips visible. If `NEXT_PUBLIC_MAP_STYLE_URL` is unset in `.env.local`, the map uses OpenFreeMap's free `liberty` style (`https://tiles.openfreemap.org/styles/liberty`, no key required, verified reachable) as a real local-dev default — a real MapTiler key is only needed if you specifically want MapTiler's styles/tile set instead. (Correction, 2026-09-22: the plan originally specified a MapLibre "shared public demo style key" for MapTiler here based on general recollection, never actually verified live. It returned HTTP 403 when checked during implementation. OpenFreeMap was verified live — HTTP 200 — and is a genuinely free, unlimited, actively-maintained OSM vector tile service, not a rate-limited demo, so it's a better default than a dead placeholder either way.)
 
 - [ ] **Step 8: Commit**
 
@@ -2706,7 +2706,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { CMDA_CENTER, CMDA_MAX_BOUNDS } from '@/lib/geo/cmda';
 import { t } from '@/lib/i18n';
 
-const DEFAULT_MAP_STYLE_URL = 'https://api.maptiler.com/maps/streets-v2/style.json?key=get_your_own_OpKXcHfvzZbdqZoLD5wf';
+const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
 
 export interface LocationPickerProps {
