@@ -103,7 +103,7 @@ values ('66666666-6666-6666-6666-666666666666', '00000000-0000-0000-0000-0000000
 
 insert into public.rate_events (user_id, ip_hash, action, created_at)
 select
-  '66666666-6666-6666-6666-666666666666',
+  '77777777-7777-7777-7777-777777777777',  -- unrelated throwaway id, not the caller
   encode(extensions.digest('203.0.113.5' || (select decrypted_secret from vault.decrypted_secrets where name = 'road_grievance_ip_salt'), 'sha256'), 'hex'),
   'report',
   now() - (n || ' minutes')::interval
