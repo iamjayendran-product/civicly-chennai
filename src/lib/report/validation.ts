@@ -18,6 +18,7 @@ export interface ReportDraft {
 
 export type ReportDraftError =
   | 'SUBTYPE_REQUIRED'
+  | 'SUBTYPE_NOT_ALLOWED'
   | 'NOTE_TOO_LONG'
   | 'PHOTOS_REQUIRED'
   | 'TOO_MANY_PHOTOS'
@@ -31,6 +32,8 @@ export function validateReportDraft(draft: ReportDraft): ReportDraftError[] {
 
   if (draft.category === 'other' && draft.subtype === null) {
     errors.push('SUBTYPE_REQUIRED');
+  } else if (draft.category !== 'other' && draft.subtype !== null) {
+    errors.push('SUBTYPE_NOT_ALLOWED');
   }
   if (draft.note.length > MAX_NOTE_LENGTH) {
     errors.push('NOTE_TOO_LONG');

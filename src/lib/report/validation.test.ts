@@ -33,4 +33,20 @@ describe('validateReportDraft', () => {
   it('requires a location', () => {
     expect(validateReportDraft({ ...validDraft, hasLocation: false })).toContain('LOCATION_REQUIRED');
   });
+
+  it('accepts a note at exactly 280 characters', () => {
+    expect(validateReportDraft({ ...validDraft, note: 'x'.repeat(280) })).not.toContain('NOTE_TOO_LONG');
+  });
+
+  it('accepts exactly three photos', () => {
+    expect(validateReportDraft({ ...validDraft, photoCount: 3 })).not.toContain('TOO_MANY_PHOTOS');
+  });
+
+  it('rejects subtype when category is not other', () => {
+    expect(validateReportDraft({ ...validDraft, category: 'pothole', subtype: 'debris' })).toContain('SUBTYPE_NOT_ALLOWED');
+  });
+
+  it('accepts category other with a valid subtype', () => {
+    expect(validateReportDraft({ ...validDraft, category: 'other', subtype: 'debris' })).toEqual([]);
+  });
 });
