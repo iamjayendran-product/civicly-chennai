@@ -16,6 +16,16 @@ type Category = Database['public']['Enums']['report_category'];
 const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
 
+// maplibre-gl resolves its default worker script URL from `import.meta.url` inside its own
+// package, which Next's webpack dev bundler does not expose as a real http(s) URL — the library
+// silently falls back to an empty string and the worker never starts (verified: Worker is
+// constructed with url `""`, so zero tile requests ever fire). `public/maplibre-gl-worker.mjs`
+// is a checked-in copy of `node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs`; re-copy it
+// after any maplibre-gl version bump.
+if (typeof window !== 'undefined') {
+  maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
+}
+
 const SOURCE_ID = 'reports';
 const CLUSTER_LAYER_ID = 'reports-clusters';
 const CLUSTER_COUNT_LAYER_ID = 'reports-cluster-count';
