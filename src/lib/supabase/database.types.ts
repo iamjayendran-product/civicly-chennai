@@ -184,6 +184,26 @@ export type Database = {
         }
         Returns: string
       }
+      reports_in_bbox: {
+        Args: {
+          p_include_fixed?: boolean
+          p_max_lat: number
+          p_max_lng: number
+          p_min_lat: number
+          p_min_lng: number
+        }
+        Returns: {
+          category: Database["public"]["Enums"]["report_category"]
+          created_at: string
+          id: string
+          lat: number
+          lng: number
+          note: string
+          status: Database["public"]["Enums"]["report_status"]
+          subtype: Database["public"]["Enums"]["report_subtype"]
+          upvote_count: number
+        }[]
+      }
     }
     Enums: {
       report_category: "pothole" | "waterlogging" | "other"
