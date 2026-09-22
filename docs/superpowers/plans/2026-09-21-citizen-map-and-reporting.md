@@ -43,6 +43,7 @@ Deferred deliberately, not overlooked — each needs its own migration/plan late
 - Offline submit with an IndexedDB draft queue (spec §8) — this slice requires connectivity to submit.
 - A CI pipeline (GitHub Actions) running lint/typecheck/Vitest/pgTAP/Playwright (spec §10) — out of scope because it's repo infra, not part of this feature; running the same commands locally (see "Final verification" at the end of this plan) is the interim substitute.
 - Client-side license-plate detection (see "Verified facts" below) — face blur only for now.
+- **(Added mid-execution, 2026-09-22)** Task 6 (`nearby_reports` RPC) and Task 15 (the report submission UI) — user decision to ship a working, viewable live map first. Both remain fully specified in this plan (see the deferral notes on each task) for whenever this is revisited. Task 16 was trimmed accordingly to a single live-pin test that seeds data via a direct `create_report` RPC call rather than driving Task 15's (nonexistent) form.
 
 ## Verified facts this plan relies on
 
@@ -185,9 +186,15 @@ select throws_ok(
   'category=other without a subtype violates the check constraint'
 );
 
--- Generated lng/lat columns reflect the point
+-- Generated lng/lat columns reflect the point.
+-- reports.reporter_id has a NOT NULL FK to auth.users(id): unlike the CHECK-constraint
+-- and RLS tests above (which fail before any FK trigger fires), this insert has no
+-- constraint violation of its own, so it needs a real auth.users row or it would fail
+-- with a foreign-key violation (23503) instead of testing what we want here.
+insert into auth.users (id, instance_id, aud, role, is_anonymous, created_at, updated_at)
+values ('99999999-9999-9999-9999-999999999999', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', true, now(), now());
 insert into public.reports (category, location, reporter_id)
-values ('pothole', extensions.st_setsrid(extensions.st_makepoint(80.27, 13.06), 4326)::extensions.geography, gen_random_uuid());
+values ('pothole', extensions.st_setsrid(extensions.st_makepoint(80.27, 13.06), 4326)::extensions.geography, '99999999-9999-9999-9999-999999999999');
 select ok(
   (select abs(lng - 80.27) < 0.0001 and abs(lat - 13.06) < 0.0001 from public.reports order by created_at desc limit 1),
   'generated lng/lat columns match the inserted point'
@@ -907,6 +914,12 @@ git commit -m "Add reports_in_bbox RPC for map viewport loading"
 ---
 
 ## Task 6: `nearby_reports` RPC
+
+> **DEFERRED (post-planning revision):** the user chose to focus this pass on
+> a working live map only. This RPC is only consumed by Task 15's
+> `DuplicateList` component, which is also deferred — nothing in the current
+> scope calls it. Left fully specified here so it can be picked up
+> unchanged whenever Task 15 resumes.
 
 **Files:**
 - Create: `supabase/migrations/20260921130400_nearby_reports_rpc.sql`
@@ -2515,6 +2528,12 @@ git commit -m "Add live map view with clustering, category filters and pin sheet
 
 ## Task 15: Report submission flow
 
+> **DEFERRED (post-planning revision):** the user chose to focus this pass on
+> a working, viewable live map only (Task 14), not the submission side yet.
+> This task is left fully specified so it can resume unchanged once that
+> decision is revisited — it depends on Task 6 (also deferred), Task 10 and
+> Task 12 (both already complete), and Tasks 3/4 (already complete).
+
 **Files:**
 - Create: `src/components/report/CategoryPicker.tsx`
 - Create: `src/components/report/PhotoCapture.tsx`
@@ -2942,112 +2961,123 @@ git commit -m "Add report submission flow: category, photos, location, duplicate
 
 ---
 
-## Task 16: End-to-end tests
+## Task 16 (TRIMMED — see scope note below): Live-pin e2e test
+
+> **Scope note (post-planning revision):** the user deferred Task 6
+> (`nearby_reports`) and Task 15 (report submission UI) to focus this pass on
+> a working, viewable live map only. The original Task 16 drove the report
+> form (Task 15) in the browser to create test data and included a second
+> test for the `OUTSIDE_CMDA` UI error — both required Task 15, which no
+> longer exists yet. This trimmed version seeds its test report with a
+> direct `create_report` RPC call (via `@supabase/supabase-js`, real
+> anonymous sign-in) instead of driving a form that doesn't exist, and drops
+> the `OUTSIDE_CMDA`-in-the-form test entirely. When Task 15 is eventually
+> built, re-add that second test and optionally switch this one back to
+> driving the real form if end-to-end form coverage is wanted too — the RPC
+> table/RLS/rate-limit machinery this depends on doesn't change either way.
+>
+> This also depends on `supabase/config.toml` having
+> `enable_anonymous_sign_ins = true` (flipped from the scaffold default of
+> `false` during this revision — real `signInAnonymously()` calls fail
+> against local Supabase Auth otherwise) and applied via a full
+> `supabase stop && supabase start` (a `db reset` alone does not reload
+> `config.toml`'s auth settings).
 
 **Files:**
 - Create: `tests/e2e/report-flow.spec.ts`
-- Modify: `playwright.config.ts` (only if it doesn't already point at `http://localhost:3000` and run `npm run dev` — read it first before changing anything)
+- Modify: `playwright.config.ts` (add `@next/env` loading so `.env.local` — specifically `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` — is available to the Playwright test process, which does not get Next.js's own env loading for free)
 
 **Interfaces:**
-- Consumes: the full stack from Tasks 1–15 running together (local Supabase + `npm run dev`).
+- Consumes: Task 14's live map (`/` renders `.maplibregl-canvas` and updates via `useReports`/Realtime), Task 4's `create_report` RPC, `@supabase/supabase-js` (already a dependency from Task 7).
 
-- [ ] **Step 1: Read the existing Playwright config**
+- [ ] **Step 1: Read the existing Playwright config, then add env loading**
 
-Read `playwright.config.ts` to confirm its `baseURL` and `webServer` settings before writing tests against it. Only modify it if it does not already start `npm run dev` and target `http://localhost:3000` — if it needs changes, add exactly that `webServer` block without altering unrelated config.
+Read `playwright.config.ts` first to confirm its current `baseURL`/`webServer` settings (it already points at `http://localhost:3000` and runs `npm run dev` — do not change those). Add `@next/env` loading at the top, before `defineConfig`:
+
+```ts
+import { loadEnvConfig } from '@next/env';
+import { defineConfig, devices } from '@playwright/test';
+
+loadEnvConfig(process.cwd());
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  use: { baseURL: 'http://localhost:3000' },
+  projects: [{ name: 'mobile-chrome', use: { ...devices['Pixel 7'] } }],
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+(`@next/env` is a dependency of `next` itself and is already resolvable — no install needed. This is the same pattern documented in `node_modules/next/dist/docs/01-app/02-guides/environment-variables.md`'s "Loading Environment Variables with `@next/env`" section.)
 
 - [ ] **Step 2: Write the failing e2e test**
 
 Create `tests/e2e/report-flow.spec.ts`:
 
 ```ts
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
 
-async function submitReport(page: Page, { lng, lat }: { lng: number; lat: number }) {
-  await page.goto('/report/new');
-  await page.getByRole('button', { name: 'Pothole' }).click();
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const fileInput = page.locator('input[type="file"]');
-  await fileInput.setInputFiles({
-    name: 'pothole.jpg',
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from(
-      '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q==',
-      'base64'
-    ),
+// Seeds a report directly via the create_report RPC (real anonymous sign-in,
+// same RPC the real report form will eventually call) instead of driving a
+// submission UI, since the report form (Task 15) isn't built yet. create_report
+// only validates that photo paths are well-formed and prefixed with the
+// caller's own uid — it doesn't check the storage object actually exists — so
+// this intentionally skips a real Storage upload to keep the test focused on
+// what it's actually proving: that an inserted report appears live on the map.
+async function createTestReport(lng: number, lat: number): Promise<string> {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
+  if (signInError || !signInData.user) {
+    throw new Error(`anonymous sign-in failed: ${signInError?.message}`);
+  }
+  const userId = signInData.user.id;
+  const { data, error } = await supabase.rpc('create_report', {
+    p_category: 'pothole',
+    p_subtype: null,
+    p_note: 'e2e test report',
+    p_lng: lng,
+    p_lat: lat,
+    p_photo_paths: [`${userId}/e2e-test.jpg`],
   });
-  await page.getByText('1 of 3 photos').waitFor();
-
-  const map = page.locator('.maplibregl-canvas').first();
-  const box = await map.boundingBox();
-  if (!box) throw new Error('map canvas not found');
-  await map.click({ position: { x: box.width / 2, y: box.height / 2 } });
-  void lng;
-  void lat;
-
-  await page.getByRole('button', { name: 'Submit report' }).click();
+  if (error || !data) {
+    throw new Error(`create_report failed: ${error?.message}`);
+  }
+  return data as string;
 }
 
-test('a report appears live on a second browser without reload', async ({ browser }) => {
-  const reporterContext = await browser.newContext();
-  const reporterPage = await reporterContext.newPage();
-  const viewerContext = await browser.newContext();
-  const viewerPage = await viewerContext.newPage();
+test('a report appears live on an open map without reload', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForSelector('.maplibregl-canvas');
+  const pinsBefore = await page.locator('.maplibregl-canvas').first().screenshot();
 
-  await viewerPage.goto('/');
-  await viewerPage.waitForSelector('.maplibregl-canvas');
-  const pinsBefore = await viewerPage.locator('.maplibregl-canvas').first().screenshot();
-
-  await submitReport(reporterPage, { lng: 80.27, lat: 13.06 });
-  await expect(reporterPage).toHaveURL(/\/r\//);
+  await createTestReport(80.27, 13.06);
 
   await expect
-    .poll(async () => (await viewerPage.locator('.maplibregl-canvas').first().screenshot()).equals(pinsBefore), {
+    .poll(async () => (await page.locator('.maplibregl-canvas').first().screenshot()).equals(pinsBefore), {
       timeout: 10_000,
     })
     .toBe(false);
-
-  await reporterContext.close();
-  await viewerContext.close();
-});
-
-test('submitting outside the CMDA shows the OUTSIDE_CMDA error', async ({ page }) => {
-  await page.goto('/report/new');
-  await page.getByRole('button', { name: 'Pothole' }).click();
-
-  const fileInput = page.locator('input[type="file"]');
-  await fileInput.setInputFiles({
-    name: 'pothole.jpg',
-    mimeType: 'image/jpeg',
-    buffer: Buffer.from(
-      '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigD//2Q==',
-      'base64'
-    ),
-  });
-  await page.getByText('1 of 3 photos').waitFor();
-
-  // Pan the location picker map far outside the CMDA before clicking to drop the pin.
-  const map = page.locator('.maplibregl-canvas').nth(1);
-  await map.hover();
-  for (let i = 0; i < 20; i += 1) {
-    await page.mouse.wheel(0, -200);
-  }
-  await map.click({ position: { x: 10, y: 10 } });
-
-  await page.getByRole('button', { name: 'Submit report' }).click();
-  await expect(page.getByText(/outside the Chennai Metropolitan Area/i)).toBeVisible();
 });
 ```
 
-- [ ] **Step 3: Run the tests to verify the current state**
+- [ ] **Step 3: Run the test to verify the current state**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase status || npx supabase start; npm run test:e2e`
-Expected: both tests should PASS if Tasks 1–15 were implemented correctly (this task doesn't add product code, only verification). If either fails, treat it as a signal that an earlier task has a bug — use `superpowers:systematic-debugging` rather than patching the test to hide the failure.
+Expected: PASS if Tasks 1–14 were implemented correctly (this task doesn't add product code, only verification). If it fails, treat it as a signal that an earlier task has a bug — use `superpowers:systematic-debugging` rather than patching the test to hide the failure. If it fails specifically at `signInAnonymously()`, check `supabase/config.toml`'s `enable_anonymous_sign_ins` is `true` and that local Supabase was restarted (not just `db reset`) after that change.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add tests/e2e/report-flow.spec.ts playwright.config.ts
-git commit -m "Add e2e tests: live realtime pin and outside-CMDA error"
+git commit -m "Add e2e test: report appears live on the map via direct RPC seed"
 ```
 
 ---
