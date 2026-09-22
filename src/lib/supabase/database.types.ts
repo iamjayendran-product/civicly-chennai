@@ -34,7 +34,140 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cmda_boundary: {
+        Row: {
+          geom: unknown
+          id: number
+        }
+        Insert: {
+          geom: unknown
+          id?: number
+        }
+        Update: {
+          geom?: unknown
+          id?: number
+        }
+        Relationships: []
+      }
+      rate_events: {
+        Row: {
+          action: string
+          created_at: string
+          id: number
+          ip_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: number
+          ip_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: number
+          ip_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      report_photos: {
+        Row: {
+          blurred: boolean
+          created_at: string
+          id: string
+          kind: string
+          report_id: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          blurred?: boolean
+          created_at?: string
+          id?: string
+          kind: string
+          report_id: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          blurred?: boolean
+          created_at?: string
+          id?: string
+          kind?: string
+          report_id?: string
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_photos_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reports: {
+        Row: {
+          category: Database["public"]["Enums"]["report_category"]
+          created_at: string
+          fix_confirm_count: number
+          fixed_at: string | null
+          flag_count: number
+          id: string
+          is_hidden: boolean
+          lat: number | null
+          lng: number | null
+          location: unknown
+          note: string | null
+          reporter_id: string
+          status: Database["public"]["Enums"]["report_status"]
+          subtype: Database["public"]["Enums"]["report_subtype"] | null
+          updated_at: string
+          upvote_count: number
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["report_category"]
+          created_at?: string
+          fix_confirm_count?: number
+          fixed_at?: string | null
+          flag_count?: number
+          id?: string
+          is_hidden?: boolean
+          lat?: number | null
+          lng?: number | null
+          location: unknown
+          note?: string | null
+          reporter_id: string
+          status?: Database["public"]["Enums"]["report_status"]
+          subtype?: Database["public"]["Enums"]["report_subtype"] | null
+          updated_at?: string
+          upvote_count?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["report_category"]
+          created_at?: string
+          fix_confirm_count?: number
+          fixed_at?: string | null
+          flag_count?: number
+          id?: string
+          is_hidden?: boolean
+          lat?: number | null
+          lng?: number | null
+          location?: unknown
+          note?: string | null
+          reporter_id?: string
+          status?: Database["public"]["Enums"]["report_status"]
+          subtype?: Database["public"]["Enums"]["report_subtype"] | null
+          updated_at?: string
+          upvote_count?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -43,7 +176,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      report_category: "pothole" | "waterlogging" | "other"
+      report_status: "open" | "fixed"
+      report_subtype:
+        | "open_manhole"
+        | "debris"
+        | "damaged_footpath"
+        | "dug_up_road"
+        | "speed_breaker"
+        | "signage"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -173,7 +315,19 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      report_category: ["pothole", "waterlogging", "other"],
+      report_status: ["open", "fixed"],
+      report_subtype: [
+        "open_manhole",
+        "debris",
+        "damaged_footpath",
+        "dug_up_road",
+        "speed_breaker",
+        "signage",
+        "other",
+      ],
+    },
   },
 } as const
 
