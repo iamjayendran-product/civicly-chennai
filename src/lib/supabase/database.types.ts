@@ -173,7 +173,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_report: {
+        Args: {
+          p_category: Database["public"]["Enums"]["report_category"]
+          p_lat: number
+          p_lng: number
+          p_note: string
+          p_photo_paths: string[]
+          p_subtype: Database["public"]["Enums"]["report_subtype"]
+        }
+        Returns: string
+      }
     }
     Enums: {
       report_category: "pothole" | "waterlogging" | "other"
