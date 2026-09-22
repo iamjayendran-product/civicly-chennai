@@ -27,6 +27,7 @@
 - `lib/supabase/` is the only place that creates Supabase clients.
 - Package manager is npm. Commit messages: imperative mood.
 - Local Supabase is already running (`npx supabase start`); `.env.local` has `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` for `http://127.0.0.1:54321`. Docker's CLI is on `PATH` via `~/.zshrc`.
+- **(Added mid-execution, 2026-09-22)** `npm run dev` runs `next dev --webpack`, not plain `next dev`. Next.js 16 defaults `next dev` to Turbopack, and Turbopack's dev-mode ESM worker bundling is incompatible with `maplibre-gl@6.10.0`'s worker (the worker silently fails to load, so `map.on('load', ...)` never fires and no tiles ever render — confirmed directly: reproduced under Turbopack, confirmed fixed under `--webpack` by launching both and checking real browser network/console output). Do not remove `--webpack` from the `dev` script without first re-verifying maplibre-gl loads under Turbopack again (a future maplibre-gl or Next.js release may fix this upstream).
 
 ---
 
