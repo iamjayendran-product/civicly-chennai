@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -32,15 +32,48 @@ async function createTestReport(lng: number, lat: number): Promise<string> {
   return data as string;
 }
 
+// `.maplibregl-canvas` exists in the DOM as soon as the MapLibre `Map`
+// constructor runs — well before `map.on('load')`, before the base style's
+// sources/layers are added, and before the initial tile fetch/paint settles.
+// Screenshotting immediately after `waitForSelector` would capture the canvas
+// mid-repaint, so a later "pixels changed" assertion could pass just from
+// ongoing tile loading rather than from the seeded report actually appearing.
+// Instead, poll screenshots until several consecutive ones are byte-identical
+// — that's the signal the initial render has quiesced — and use that as the
+// baseline.
+async function waitForStableScreenshot(
+  canvas: Locator,
+  { intervalMs = 250, consecutiveMatches = 3, timeoutMs = 20_000 } = {},
+): Promise<Buffer> {
+  const deadline = Date.now() + timeoutMs;
+  let last: Buffer | null = null;
+  let matches = 0;
+  while (Date.now() < deadline) {
+    const shot = await canvas.screenshot();
+    if (last && shot.equals(last)) {
+      matches += 1;
+      if (matches >= consecutiveMatches) {
+        return shot;
+      }
+    } else {
+      matches = 0;
+    }
+    last = shot;
+    await canvas.page().waitForTimeout(intervalMs);
+  }
+  throw new Error(`canvas did not stabilize within ${timeoutMs}ms`);
+}
+
 test("a report appears live on an open map without reload", async ({ page }) => {
   await page.goto("/");
   await page.waitForSelector(".maplibregl-canvas");
-  const pinsBefore = await page.locator(".maplibregl-canvas").first().screenshot();
+  const canvas = page.locator(".maplibregl-canvas").first();
+  const pinsBefore = await waitForStableScreenshot(canvas);
 
   await createTestReport(80.27, 13.06);
 
   await expect
-    .poll(async () => (await page.locator(".maplibregl-canvas").first().screenshot()).equals(pinsBefore), {
+    .poll(async () => (await canvas.screenshot()).equals(pinsBefore), {
       timeout: 10_000,
     })
     .toBe(false);
