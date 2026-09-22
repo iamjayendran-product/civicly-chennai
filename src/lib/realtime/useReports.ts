@@ -59,14 +59,23 @@ export function useReports(bbox: BboxParams | null, includeFixed: boolean) {
   const [reports, setReports] = useState<Map<string, ReportPin>>(new Map());
   const [status, setStatus] = useState<'loading' | 'live' | 'paused'>('loading');
 
+  // Reset to 'loading' whenever bbox/includeFixed change, ahead of the effect that
+  // fetches the new snapshot. This is React's documented "adjusting state when a
+  // prop changes" pattern: comparing the prop-derived key against a *state* value
+  // (not a ref, which this project's lint config forbids reading during render) and
+  // calling setState conditionally during render, rather than unconditionally
+  // inside useEffect.
+  const bboxKey = bbox ? `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat},${includeFixed}` : null;
+  const [lastBboxKey, setLastBboxKey] = useState<string | null>(null);
+  if (bboxKey !== null && bboxKey !== lastBboxKey) {
+    setLastBboxKey(bboxKey);
+    setStatus('loading');
+  }
+
   useEffect(() => {
     if (!bbox) return;
     const supabase = getBrowserClient();
     let cancelled = false;
-    // Reset to 'loading' whenever bbox/includeFixed change and a new snapshot fetch
-    // starts; this is a deliberate synchronous reset, not state derived from props.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStatus('loading');
 
     supabase
       .rpc('reports_in_bbox', {

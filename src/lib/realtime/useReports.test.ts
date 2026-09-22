@@ -90,4 +90,18 @@ describe('useReports', () => {
 
     expect(result.current.reports).toHaveLength(0);
   });
+
+  it('adds a pin from a realtime UPDATE event when a report newly qualifies', async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    const { result } = renderHook(() => useReports(bbox, false));
+    await waitFor(() => expect(result.current.status).toBe('live'));
+
+    act(() => {
+      updateHandler({
+        new: { id: 'r4', category: 'pothole', subtype: null, note: null, lng: 80.26, lat: 13.06, status: 'open', is_hidden: false, upvote_count: 0, created_at: '2026-01-01T00:00:00Z' },
+      });
+    });
+
+    expect(result.current.reports.map((r) => r.id)).toContain('r4');
+  });
 });
