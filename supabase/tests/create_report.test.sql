@@ -1,10 +1,18 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(9);
+select plan(11);
 
 -- Helper: a point well inside the CMDA boundary (central Chennai).
 -- lng=80.27, lat=13.06
+
+-- AUTH_REQUIRED: no session (no request.jwt.claims set yet)
+select throws_ok(
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['00000000-0000-0000-0000-000000000000/a.jpg']) $$,
+  'P0001',
+  'AUTH_REQUIRED',
+  'calling with no JWT sub claim raises AUTH_REQUIRED'
+);
 
 -- Fixture user
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_anonymous)
@@ -83,6 +91,32 @@ select throws_ok(
   'P0001',
   'RATE_LIMITED',
   'a 6th report within an hour raises RATE_LIMITED'
+);
+
+-- RATE_LIMITED via the per-IP-hash path (30/day), proven with a fresh user so the
+-- per-user rate limits (already tripped above) don't interfere.
+-- Drop to postgres: auth.users has no insert policy for authenticated, and
+-- vault.decrypted_secrets isn't readable by authenticated either.
+reset role;
+insert into auth.users (id, instance_id, aud, role, is_anonymous, created_at, updated_at)
+values ('66666666-6666-6666-6666-666666666666', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', true, now(), now());
+
+insert into public.rate_events (user_id, ip_hash, action, created_at)
+select
+  '66666666-6666-6666-6666-666666666666',
+  encode(extensions.digest('203.0.113.5' || (select decrypted_secret from vault.decrypted_secrets where name = 'road_grievance_ip_salt'), 'sha256'), 'hex'),
+  'report',
+  now() - (n || ' minutes')::interval
+from generate_series(1, 30) as n;
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated","is_anonymous":true}';
+set local request.headers = '{"x-forwarded-for": "203.0.113.5"}';
+select throws_ok(
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['66666666-6666-6666-6666-666666666666/g.jpg']) $$,
+  'P0001',
+  'RATE_LIMITED',
+  'a 31st report from the same IP hash within a day raises RATE_LIMITED, independent of per-user limits'
 );
 
 select * from finish();
