@@ -1,7 +1,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(11);
+select plan(13);
 
 -- Helper: a point well inside the CMDA boundary (central Chennai).
 -- lng=80.27, lat=13.06
@@ -26,20 +26,28 @@ select lives_ok(
   $$ select public.create_report('pothole', null, 'Deep pothole near bus stop', 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/a.jpg']) $$,
   'create_report succeeds for a valid pothole report inside the CMDA'
 );
+-- Neither rate_events nor report_owners is readable by anon/authenticated by design
+-- (they are only ever written/read via security-definer RPCs; report_owners keeps
+-- reporter identity off public.reports and out of the Realtime broadcast). Drop to
+-- postgres to verify the RPC's own writes landed, then restore the simulated session
+-- for the remaining tests.
+reset role;
 select is(
-  (select count(*)::int from public.reports where reporter_id = '11111111-1111-1111-1111-111111111111'),
+  (select count(*)::int from public.report_owners where reporter_id = '11111111-1111-1111-1111-111111111111'),
+  1,
+  'exactly one report_owners row records the reporter'
+);
+select is(
+  (select count(*)::int from public.reports r join public.report_owners o on o.report_id = r.id
+    where o.reporter_id = '11111111-1111-1111-1111-111111111111'),
   1,
   'exactly one report row was inserted'
 );
 select is(
-  (select count(*)::int from public.report_photos rp join public.reports r on r.id = rp.report_id where r.reporter_id = '11111111-1111-1111-1111-111111111111'),
+  (select count(*)::int from public.report_photos rp join public.report_owners o on o.report_id = rp.report_id where o.reporter_id = '11111111-1111-1111-1111-111111111111'),
   1,
   'exactly one report_photos row was inserted'
 );
--- rate_events has no select policy for anon/authenticated by design (Task 1: it is
--- only ever written/read via security-definer RPCs). Drop to postgres to verify the
--- RPC's own write landed, then restore the simulated session for the remaining tests.
-reset role;
 select is(
   (select count(*)::int from public.rate_events where user_id = '11111111-1111-1111-1111-111111111111' and action = 'report'),
   1,
@@ -100,6 +108,8 @@ select throws_ok(
 reset role;
 insert into auth.users (id, instance_id, aud, role, is_anonymous, created_at, updated_at)
 values ('66666666-6666-6666-6666-666666666666', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', true, now(), now());
+insert into auth.users (id, instance_id, aud, role, is_anonymous, created_at, updated_at)
+values ('88888888-8888-8888-8888-888888888888', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', true, now(), now());
 
 insert into public.rate_events (user_id, ip_hash, action, created_at)
 select
@@ -111,12 +121,25 @@ from generate_series(1, 30) as n;
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated","is_anonymous":true}';
-set local request.headers = '{"x-forwarded-for": "203.0.113.5"}';
+-- Multi-hop x-forwarded-for: each proxy appends the peer it saw, so only the RIGHTMOST
+-- entry is trustworthy. The two entries on the left are the kind of forgery a client can
+-- send to mint itself a fresh rate-limit bucket; with the old leftmost-entry logic this
+-- call would hash "1.2.3.4" and sail past the cap.
+set local request.headers = '{"x-forwarded-for": "1.2.3.4, 5.6.7.8, 203.0.113.5"}';
 select throws_ok(
   $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['66666666-6666-6666-6666-666666666666/g.jpg']) $$,
   'P0001',
   'RATE_LIMITED',
-  'a 31st report from the same IP hash within a day raises RATE_LIMITED, independent of per-user limits'
+  'a 31st report from the same rightmost x-forwarded-for hash within a day raises RATE_LIMITED, independent of per-user limits'
+);
+
+-- Converse: the rate-limited address appearing as a forged LEFTMOST entry must not
+-- limit a request whose real (rightmost) address is unseen.
+set local request.jwt.claims = '{"sub":"88888888-8888-8888-8888-888888888888","role":"authenticated","is_anonymous":true}';
+set local request.headers = '{"x-forwarded-for": "203.0.113.5, 198.51.100.9"}';
+select lives_ok(
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['88888888-8888-8888-8888-888888888888/h.jpg']) $$,
+  'only the rightmost x-forwarded-for entry counts: a spoofed leftmost entry does not carry another IP''s rate-limit bucket'
 );
 
 select * from finish();

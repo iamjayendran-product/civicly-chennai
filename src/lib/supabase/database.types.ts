@@ -73,6 +73,29 @@ export type Database = {
         }
         Relationships: []
       }
+      report_owners: {
+        Row: {
+          report_id: string
+          reporter_id: string
+        }
+        Insert: {
+          report_id: string
+          reporter_id: string
+        }
+        Update: {
+          report_id?: string
+          reporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_owners_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: true
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_photos: {
         Row: {
           blurred: boolean
@@ -124,7 +147,6 @@ export type Database = {
           lng: number | null
           location: unknown
           note: string | null
-          reporter_id: string
           status: Database["public"]["Enums"]["report_status"]
           subtype: Database["public"]["Enums"]["report_subtype"] | null
           updated_at: string
@@ -142,7 +164,6 @@ export type Database = {
           lng?: number | null
           location: unknown
           note?: string | null
-          reporter_id: string
           status?: Database["public"]["Enums"]["report_status"]
           subtype?: Database["public"]["Enums"]["report_subtype"] | null
           updated_at?: string
@@ -160,7 +181,6 @@ export type Database = {
           lng?: number | null
           location?: unknown
           note?: string | null
-          reporter_id?: string
           status?: Database["public"]["Enums"]["report_status"]
           subtype?: Database["public"]["Enums"]["report_subtype"] | null
           updated_at?: string
