@@ -92,7 +92,15 @@ export function MapView() {
         type: 'symbol',
         source: SOURCE_ID,
         filter: ['has', 'point_count'],
-        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
+        // 'text-font' is explicit because MapLibre otherwise asks for its default
+        // stack, which OpenFreeMap's liberty style does not serve — a glyph 404 on
+        // every page load. 'Noto Sans Regular' is the only regular-weight font in
+        // liberty's own glyph set.
+        layout: {
+          'text-field': ['get', 'point_count_abbreviated'],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': 12,
+        },
         paint: { 'text-color': '#ffffff' },
       });
       map.addLayer({

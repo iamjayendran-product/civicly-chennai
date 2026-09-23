@@ -33,5 +33,7 @@
   "map.status.paused": "Live updates paused",
   "map.pin.reportedAgo": "Reported {{time}} ago",
   "report.status.fixed": "Fixed",
-  "report.status.open": "Open"
+  "report.status.open": "Open",
+  "pinSheet.upvotes": "{{count}} +1",
+  "pinSheet.close": "Close"
 }

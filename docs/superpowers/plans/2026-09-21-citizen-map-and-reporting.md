@@ -146,7 +146,7 @@ Each unit has one job: `lib/images` is pure `File → ProcessedPhoto`, `lib/geo`
 **Interfaces:**
 - Produces: tables `public.reports` (`id uuid`, `category public.report_category`, `subtype public.report_subtype`, `note text`, `location extensions.geography(Point,4326)`, `lng float8` generated, `lat float8` generated, `status public.report_status`, `reporter_id uuid`, `upvote_count int`, `flag_count int`, `fix_confirm_count int`, `is_hidden bool`, `created_at`, `updated_at`, `fixed_at`), `public.report_photos`, `public.rate_events`, `public.cmda_boundary` (empty until Task 2). Enums `public.report_category`, `public.report_subtype`, `public.report_status`. `public.reports` is in the `supabase_realtime` publication.
 
-- [ ] **Step 1: Write the failing pgTAP test**
+- [x] **Step 1: Write the failing pgTAP test**
 
 Create `supabase/tests/reports_schema.test.sql`:
 
@@ -223,12 +223,12 @@ select * from finish();
 rollback;
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase test db supabase/tests/reports_schema.test.sql`
 Expected: FAIL — `relation "public.cmda_boundary" does not exist` (no migration yet).
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 Create `supabase/migrations/20260921130000_reports_schema.sql`:
 
@@ -317,12 +317,12 @@ alter table public.rate_events enable row level security;
 alter publication supabase_realtime add table public.reports;
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/reports_schema.test.sql`
 Expected: PASS — `1..11`, all `ok`.
 
-- [ ] **Step 5: Regenerate types and commit**
+- [x] **Step 5: Regenerate types and commit**
 
 Run:
 ```bash
@@ -345,7 +345,7 @@ git commit -m "Add reports schema: enums, tables, RLS, realtime publication"
 - Consumes: `public.cmda_boundary` table from Task 1.
 - Produces: exactly one row in `public.cmda_boundary` with a valid, simplified `MultiPolygon` geography covering the Chennai Metropolitan Area. Every later task that does a boundary check (`create_report`) depends on this row existing after `supabase db reset`.
 
-- [ ] **Step 1: Fetch and commit the raw boundary fixture**
+- [x] **Step 1: Fetch and commit the raw boundary fixture**
 
 Run:
 ```bash
@@ -357,7 +357,7 @@ curl -s "https://nominatim.openstreetmap.org/lookup?osm_ids=R12353813&format=geo
 
 Verify: `jq -r '.type' supabase/seed-data/cmda-boundary.geojson` prints `Polygon`, and `wc -c supabase/seed-data/cmda-boundary.geojson` shows roughly 37KB. This is OSM relation 12353813 ("Chennai metropolitan area", `boundary=planning_area`) — do not swap in a different relation without re-verifying its area is close to 1189 km² (CMDA's published area).
 
-- [ ] **Step 2: Write the failing pgTAP test**
+- [x] **Step 2: Write the failing pgTAP test**
 
 Create `supabase/tests/cmda_boundary.test.sql`:
 
@@ -396,12 +396,12 @@ select * from finish();
 rollback;
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/cmda_boundary.test.sql`
 Expected: FAIL — `cmda_boundary has exactly one row` fails, actual count is 0.
 
-- [ ] **Step 4: Write the seed generator script**
+- [x] **Step 4: Write the seed generator script**
 
 Create `scripts/generate-cmda-seed.mjs`:
 
@@ -454,7 +454,7 @@ writeFileSync(seedPath, next);
 console.log(`Wrote CMDA boundary block to ${seedPath}`);
 ```
 
-- [ ] **Step 5: Run the generator and apply the seed**
+- [x] **Step 5: Run the generator and apply the seed**
 
 Run:
 ```bash
@@ -465,7 +465,7 @@ npx supabase test db supabase/tests/cmda_boundary.test.sql
 ```
 Expected: PASS — `1..4`, all `ok`. (`db reset` re-applies migrations then `seed.sql`, which now contains the generated insert.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add supabase/seed-data/cmda-boundary.geojson scripts/generate-cmda-seed.mjs supabase/seed.sql supabase/tests/cmda_boundary.test.sql
@@ -483,7 +483,7 @@ git commit -m "Seed the CMDA boundary from OSM relation 12353813"
 **Interfaces:**
 - Produces: `report-photos` bucket (public read, 2MB limit, `image/jpeg` only) with an insert policy requiring the first path segment to equal `auth.uid()::text`. `create_report` (Task 4) relies on this bucket existing so uploaded paths are valid; `PhotoCapture` (Task 14, frontend) uploads directly to it via the browser Supabase client.
 
-- [ ] **Step 1: Write the failing pgTAP test**
+- [x] **Step 1: Write the failing pgTAP test**
 
 Create `supabase/tests/storage.test.sql`:
 
@@ -515,12 +515,12 @@ select * from finish();
 rollback;
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/storage.test.sql`
 Expected: FAIL — bucket row is null.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 Create `supabase/migrations/20260921130100_report_photos_storage.sql`:
 
@@ -543,12 +543,12 @@ to anon, authenticated
 using (bucket_id = 'report-photos');
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/storage.test.sql`
 Expected: PASS — `1..3`, all `ok`.
 
-- [ ] **Step 5: Regenerate types and commit**
+- [x] **Step 5: Regenerate types and commit**
 
 ```bash
 npm run db:types
@@ -568,7 +568,7 @@ git commit -m "Add report-photos storage bucket and path-ownership policies"
 - Consumes: `public.reports`/`public.report_photos`/`public.rate_events`/`public.cmda_boundary` (Task 1, 2), `report-photos` bucket path convention (Task 3).
 - Produces: `public.create_report(p_category public.report_category, p_subtype public.report_subtype, p_note text, p_lng float8, p_lat float8, p_photo_paths text[]) returns uuid`, callable by `anon` and `authenticated`. Raises `OUTSIDE_CMDA`, `RATE_LIMITED`, `INVALID_PHOTOS`, `INVALID_INPUT`, or `AUTH_REQUIRED`. The frontend report flow (Task 14) calls this as the final submit step.
 
-- [ ] **Step 1: Write the failing pgTAP test**
+- [x] **Step 1: Write the failing pgTAP test**
 
 Create `supabase/tests/create_report.test.sql`. This test creates a real `auth.users` row per case (minimal columns needed to satisfy `reports.reporter_id`'s FK and `auth.uid()`), then simulates that session:
 
@@ -656,12 +656,12 @@ select * from finish();
 rollback;
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/create_report.test.sql`
 Expected: FAIL — `function public.create_report(...) does not exist`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 Create `supabase/migrations/20260921130200_create_report_rpc.sql`:
 
@@ -765,12 +765,12 @@ revoke execute on function public.create_report(public.report_category, public.r
 grant execute on function public.create_report(public.report_category, public.report_subtype, text, float8, float8, text[]) to anon, authenticated;
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/create_report.test.sql`
 Expected: PASS — `1..9`, all `ok`.
 
-- [ ] **Step 5: Regenerate types and commit**
+- [x] **Step 5: Regenerate types and commit**
 
 ```bash
 npm run db:types
@@ -790,7 +790,7 @@ git commit -m "Add create_report RPC with CMDA check, rate limiting and photo va
 - Consumes: `public.reports` (Task 1).
 - Produces: `public.reports_in_bbox(p_min_lng float8, p_min_lat float8, p_max_lng float8, p_max_lat float8, p_include_fixed boolean default false) returns table (id uuid, category public.report_category, subtype public.report_subtype, note text, lng float8, lat float8, status public.report_status, upvote_count int, created_at timestamptz)`, callable by `anon` and `authenticated`. Consumed by `useReports` (Task 11) for the map's initial load per viewport.
 
-- [ ] **Step 1: Write the failing pgTAP test**
+- [x] **Step 1: Write the failing pgTAP test**
 
 Create `supabase/tests/reports_in_bbox.test.sql`:
 
@@ -851,12 +851,12 @@ select * from finish();
 rollback;
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/reports_in_bbox.test.sql`
 Expected: FAIL — `function public.reports_in_bbox(...) does not exist`.
 
-- [ ] **Step 3: Write the migration**
+- [x] **Step 3: Write the migration**
 
 Create `supabase/migrations/20260921130300_reports_in_bbox_rpc.sql`:
 
@@ -900,12 +900,12 @@ revoke execute on function public.reports_in_bbox(float8, float8, float8, float8
 grant execute on function public.reports_in_bbox(float8, float8, float8, float8, boolean) to anon, authenticated;
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase db reset && npx supabase test db supabase/tests/reports_in_bbox.test.sql`
 Expected: PASS — `1..4`, all `ok`. (This test seeds 2000+ rows, so it will take a few seconds.)
 
-- [ ] **Step 5: Regenerate types and commit**
+- [x] **Step 5: Regenerate types and commit**
 
 ```bash
 npm run db:types
@@ -1067,11 +1067,11 @@ Expected: every test file in `supabase/tests/` passes.
 - Consumes: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` from `.env.local`; `src/lib/supabase/database.types.ts` (generated in Part A).
 - Produces: `getBrowserClient(): SupabaseClient<Database>` (client components), `getServerClient(): Promise<SupabaseClient<Database>>` (server components/route handlers). Every later task that talks to Supabase imports one of these — never `createClient` directly (per `src/CLAUDE.md`).
 
-- [ ] **Step 1: Install dependencies**
+- [x] **Step 1: Install dependencies**
 
 Run: `npm install @supabase/supabase-js @supabase/ssr`
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `src/lib/supabase/browser.test.ts`:
 
@@ -1095,12 +1095,12 @@ describe('getBrowserClient', () => {
 });
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `npm test -- src/lib/supabase/browser.test.ts`
 Expected: FAIL — `Failed to resolve import "./browser"`.
 
-- [ ] **Step 4: Implement the clients**
+- [x] **Step 4: Implement the clients**
 
 Create `src/lib/supabase/browser.ts`:
 
@@ -1154,12 +1154,12 @@ export async function getServerClient() {
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npm test -- src/lib/supabase/browser.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Typecheck and commit**
+- [x] **Step 6: Typecheck and commit**
 
 ```bash
 npm run typecheck
@@ -1179,7 +1179,7 @@ git commit -m "Add Supabase browser and server client factories"
 **Interfaces:**
 - Produces: `t(key, vars?): string` and `errorCodeToMessage(code: string): string`. Every component in Part C imports strings from here — never hard-coded text.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/i18n/index.test.ts`:
 
@@ -1210,12 +1210,12 @@ describe('errorCodeToMessage', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm test -- src/lib/i18n/index.test.ts`
 Expected: FAIL — `Failed to resolve import "./index"`.
 
-- [ ] **Step 3: Write the message catalog**
+- [x] **Step 3: Write the message catalog**
 
 Create `src/lib/i18n/messages/en.json`:
 
@@ -1257,7 +1257,7 @@ Create `src/lib/i18n/messages/en.json`:
 }
 ```
 
-- [ ] **Step 4: Implement `t` and `errorCodeToMessage`**
+- [x] **Step 4: Implement `t` and `errorCodeToMessage`**
 
 Create `src/lib/i18n/index.ts`:
 
@@ -1284,12 +1284,12 @@ export function errorCodeToMessage(code: string): string {
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npm test -- src/lib/i18n/index.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/i18n/
@@ -1307,7 +1307,7 @@ git commit -m "Add i18n message catalog and RPC error-code mapping"
 **Interfaces:**
 - Produces: `CMDA_BBOX`, `CMDA_CENTER`, `CMDA_MAX_BOUNDS` (MapLibre `LngLatBoundsLike` tuple), `boundsToBboxParams(bounds): { minLng, minLat, maxLng, maxLat }`. Consumed by `MapView` (Task 13) and `useReports` (Task 11).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/geo/cmda.test.ts`:
 
@@ -1349,12 +1349,12 @@ describe('boundsToBboxParams', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm test -- src/lib/geo/cmda.test.ts`
 Expected: FAIL — `Failed to resolve import "./cmda"`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/geo/cmda.ts`:
 
@@ -1402,12 +1402,12 @@ export function boundsToBboxParams(bounds: BoundsLike): BboxParams {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npm test -- src/lib/geo/cmda.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/geo/
@@ -1427,13 +1427,13 @@ git commit -m "Add CMDA bbox constants and bounds-to-RPC-params helper"
 - Consumes: `getBrowserClient` (Task 7). `NEXT_PUBLIC_TURNSTILE_SITE_KEY` env var (falls back to Cloudflare's published test sitekey `1x00000000000000000000AA` for local dev, which always passes).
 - Produces: `<SessionProvider>` wraps the app; exposes `useSession(): { userId: string | null, loading: boolean }` via context. `PhotoCapture`/report submission (Task 14) waits on `loading === false` before allowing submit, since `create_report` requires a session.
 
-- [ ] **Step 1: Install a test dependency for React component tests**
+- [x] **Step 1: Install a test dependency for React component tests**
 
 Run: `npm install -D @testing-library/jest-dom`
 
 (`@testing-library/react` and `jsdom` are already installed per `package.json`.)
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `src/components/auth/SessionProvider.test.tsx`:
 
@@ -1480,12 +1480,12 @@ describe('SessionProvider', () => {
 
 This test injects the Turnstile token directly (`turnstileToken` prop) rather than rendering the real widget, since the Cloudflare script isn't available in jsdom — the widget-rendering path is covered by the Playwright e2e test in Task 15 instead.
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `npm test -- src/components/auth/SessionProvider.test.tsx`
 Expected: FAIL — `Failed to resolve import "./SessionProvider"`.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 Create `src/components/auth/SessionProvider.tsx`:
 
@@ -1575,16 +1575,16 @@ export function SessionProvider({
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npm test -- src/components/auth/SessionProvider.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: Wire into the root layout**
+- [x] **Step 6: Wire into the root layout**
 
 Read `src/app/layout.tsx` first, then wrap the existing body content in `<SessionProvider>` (add the import and wrap `{children}`; keep everything else in the file unchanged).
 
-- [ ] **Step 7: Typecheck and commit**
+- [x] **Step 7: Typecheck and commit**
 
 ```bash
 npm run typecheck
@@ -1604,7 +1604,7 @@ git commit -m "Add anonymous session bootstrap with Turnstile"
 - Consumes: `getBrowserClient` (Task 7), `Database['public']['Functions']['reports_in_bbox']` return row shape, `BboxParams` (Task 9).
 - Produces: `useReports(bbox: BboxParams | null, includeFixed: boolean): { reports: ReportPin[], status: 'loading' | 'live' | 'paused' }`. `MapView` (Task 13) is the only consumer.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/realtime/useReports.test.ts`. This mocks the Supabase client's `rpc` and `channel` methods to test the hook's merge logic without a real database:
 
@@ -1704,12 +1704,12 @@ describe('useReports', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm test -- src/lib/realtime/useReports.test.ts`
 Expected: FAIL — `Failed to resolve import "./useReports"`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/realtime/useReports.ts`:
 
@@ -1834,12 +1834,12 @@ export function useReports(bbox: BboxParams | null, includeFixed: boolean) {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npm test -- src/lib/realtime/useReports.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Typecheck and commit**
+- [x] **Step 5: Typecheck and commit**
 
 ```bash
 npm run typecheck
@@ -1861,11 +1861,11 @@ git commit -m "Add useReports bbox+realtime hook"
 **Interfaces:**
 - Produces: `computeResizedDimensions(width, height, maxLongEdge?): { width, height }` (pure), `detectFaceRegions(image: ImageBitmap): Promise<BlurRegion[]>`, `processPhoto(file: File | Blob): Promise<{ blob: Blob; blurred: boolean; width: number; height: number }>`. `PhotoCapture` (Task 14) is the only consumer of `processPhoto`.
 
-- [ ] **Step 1: Install the face-detection package**
+- [x] **Step 1: Install the face-detection package**
 
 Run: `npm install @mediapipe/tasks-vision`
 
-- [ ] **Step 2: Write the failing test for the pure resize helper**
+- [x] **Step 2: Write the failing test for the pure resize helper**
 
 Create `src/lib/images/resize.test.ts`:
 
@@ -1888,12 +1888,12 @@ describe('computeResizedDimensions', () => {
 });
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `npm test -- src/lib/images/resize.test.ts`
 Expected: FAIL — `Failed to resolve import "./resize"`.
 
-- [ ] **Step 4: Implement the pure resize helper**
+- [x] **Step 4: Implement the pure resize helper**
 
 Create `src/lib/images/resize.ts`:
 
@@ -1914,12 +1914,12 @@ export function computeResizedDimensions(
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `npm test -- src/lib/images/resize.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Implement the face-detection wrapper**
+- [x] **Step 6: Implement the face-detection wrapper**
 
 Create `src/lib/images/faceBlur.ts`:
 
@@ -1965,7 +1965,7 @@ export async function detectFaceRegions(image: ImageBitmap): Promise<BlurRegion[
 }
 ```
 
-- [ ] **Step 7: Write the failing test for the orchestration function**
+- [x] **Step 7: Write the failing test for the orchestration function**
 
 Create `src/lib/images/processPhoto.test.ts`. This mocks `faceBlur` and the browser's canvas APIs (not implemented by jsdom) so the test exercises the pipeline's logic and error handling, not real image decoding:
 
@@ -2031,12 +2031,12 @@ describe('processPhoto', () => {
 });
 ```
 
-- [ ] **Step 8: Run the test to verify it fails**
+- [x] **Step 8: Run the test to verify it fails**
 
 Run: `npm test -- src/lib/images/processPhoto.test.ts`
 Expected: FAIL — `Failed to resolve import "./processPhoto"`.
 
-- [ ] **Step 9: Implement the orchestration function**
+- [x] **Step 9: Implement the orchestration function**
 
 Create `src/lib/images/processPhoto.ts`:
 
@@ -2100,12 +2100,12 @@ function blurRegion(ctx: OffscreenCanvasRenderingContext2D, region: BlurRegion) 
 }
 ```
 
-- [ ] **Step 10: Run the test to verify it passes**
+- [x] **Step 10: Run the test to verify it passes**
 
 Run: `npm test -- src/lib/images/processPhoto.test.ts`
 Expected: PASS.
 
-- [ ] **Step 11: Typecheck and commit**
+- [x] **Step 11: Typecheck and commit**
 
 ```bash
 npm run typecheck
@@ -2124,7 +2124,7 @@ git commit -m "Add client-side photo pipeline: resize, face blur, JPEG re-encode
 **Interfaces:**
 - Produces: `validateReportDraft(draft: ReportDraft): ReportDraftError[]`. `CategoryPicker`/report page (Task 14) uses this for instant client-side feedback; it never replaces the server-side checks in `create_report`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/lib/report/validation.test.ts`:
 
@@ -2167,12 +2167,12 @@ describe('validateReportDraft', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm test -- src/lib/report/validation.test.ts`
 Expected: FAIL — `Failed to resolve import "./validation"`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `src/lib/report/validation.ts`:
 
@@ -2227,12 +2227,12 @@ export function validateReportDraft(draft: ReportDraft): ReportDraftError[] {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npm test -- src/lib/report/validation.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/report/
@@ -2255,11 +2255,11 @@ git commit -m "Add pure report-draft validation for client-side feedback"
 - Consumes: `useReports` (Task 11), `CMDA_CENTER`/`CMDA_MAX_BOUNDS`/`boundsToBboxParams` (Task 9), `t` (Task 8).
 - Produces: the home page live map. No further tasks in this slice depend on this one; it is covered by the Playwright e2e test (Task 15), not Vitest, per the spec's own testing split (§10 lists Vitest for the pure helpers/pipeline only).
 
-- [ ] **Step 1: Install MapLibre**
+- [x] **Step 1: Install MapLibre**
 
 Run: `npm install maplibre-gl`
 
-- [ ] **Step 2: Implement `Filters`**
+- [x] **Step 2: Implement `Filters`**
 
 Create `src/components/map/Filters.tsx`:
 
@@ -2310,7 +2310,7 @@ function Chip({ active, onClick, label }: { active: boolean; onClick: () => void
 }
 ```
 
-- [ ] **Step 3: Implement `PinSheet`**
+- [x] **Step 3: Implement `PinSheet`**
 
 Create `src/components/map/PinSheet.tsx`:
 
@@ -2344,7 +2344,7 @@ export function PinSheet({ report, onClose }: PinSheetProps) {
 }
 ```
 
-- [ ] **Step 4: Implement `MapView`**
+- [x] **Step 4: Implement `MapView`**
 
 Create `src/components/map/MapView.tsx`:
 
@@ -2506,20 +2506,20 @@ export function MapView() {
 }
 ```
 
-- [ ] **Step 5: Wire into the home page**
+- [x] **Step 5: Wire into the home page**
 
 Read `src/app/page.tsx` first, then replace its content so the page renders `<MapView />` as a client component (add `import { MapView } from '@/components/map/MapView';` and render it; since `MapView` is itself `"use client"`, `page.tsx` can remain a Server Component that simply renders it).
 
-- [ ] **Step 6: Typecheck**
+- [x] **Step 6: Typecheck**
 
 Run: `npm run typecheck`
 Expected: no errors. (MapLibre ships its own TypeScript types; no `@types` package needed.)
 
-- [ ] **Step 7: Manual smoke test**
+- [x] **Step 7: Manual smoke test**
 
 Run: `npm run dev`, open `http://localhost:3000`, and confirm the map renders centered on Chennai, bounded to the CMDA extent (panning stops at the edges), with the filter chips visible. If `NEXT_PUBLIC_MAP_STYLE_URL` is unset in `.env.local`, the map uses OpenFreeMap's free `liberty` style (`https://tiles.openfreemap.org/styles/liberty`, no key required, verified reachable) as a real local-dev default — a real MapTiler key is only needed if you specifically want MapTiler's styles/tile set instead. (Correction, 2026-09-22: the plan originally specified a MapLibre "shared public demo style key" for MapTiler here based on general recollection, never actually verified live. It returned HTTP 403 when checked during implementation. OpenFreeMap was verified live — HTTP 200 — and is a genuinely free, unlimited, actively-maintained OSM vector tile service, not a rate-limited demo, so it's a better default than a dead placeholder either way.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add package.json package-lock.json src/components/map/ src/app/page.tsx
@@ -2992,7 +2992,7 @@ git commit -m "Add report submission flow: category, photos, location, duplicate
 **Interfaces:**
 - Consumes: Task 14's live map (`/` renders `.maplibregl-canvas` and updates via `useReports`/Realtime), Task 4's `create_report` RPC, `@supabase/supabase-js` (already a dependency from Task 7).
 
-- [ ] **Step 1: Read the existing Playwright config, then add env loading**
+- [x] **Step 1: Read the existing Playwright config, then add env loading**
 
 Read `playwright.config.ts` first to confirm its current `baseURL`/`webServer` settings (it already points at `http://localhost:3000` and runs `npm run dev` — do not change those). Add `@next/env` loading at the top, before `defineConfig`:
 
@@ -3016,7 +3016,7 @@ export default defineConfig({
 
 (`@next/env` is a dependency of `next` itself and is already resolvable — no install needed. This is the same pattern documented in `node_modules/next/dist/docs/01-app/02-guides/environment-variables.md`'s "Loading Environment Variables with `@next/env`" section.)
 
-- [ ] **Step 2: Write the failing e2e test**
+- [x] **Step 2: Write the failing e2e test**
 
 Create `tests/e2e/report-flow.spec.ts`:
 
@@ -3070,12 +3070,12 @@ test('a report appears live on an open map without reload', async ({ page }) => 
 });
 ```
 
-- [ ] **Step 3: Run the test to verify the current state**
+- [x] **Step 3: Run the test to verify the current state**
 
 Run: `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"; npx supabase status || npx supabase start; npm run test:e2e`
 Expected: PASS if Tasks 1–14 were implemented correctly (this task doesn't add product code, only verification). If it fails, treat it as a signal that an earlier task has a bug — use `superpowers:systematic-debugging` rather than patching the test to hide the failure. If it fails specifically at `signInAnonymously()`, check `supabase/config.toml`'s `enable_anonymous_sign_ins` is `true` and that local Supabase was restarted (not just `db reset`) after that change.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/e2e/report-flow.spec.ts playwright.config.ts
