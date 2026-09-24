@@ -1,0 +1,12 @@
+-- The `report_photos_public_select` policy granted anon/authenticated `select` on
+-- every object in the report-photos bucket via Storage's authenticated API (e.g.
+-- `supabase.storage.from('report-photos').list()`). Object paths are
+-- `{reporter_uid}/{filename}.jpg`, so that policy let anyone enumerate every
+-- reporter's UUID. Dropping it does not break public photo viewing: Supabase Storage
+-- serves objects in a public bucket through a dedicated `/storage/v1/object/public/...`
+-- route that bypasses RLS entirely (verified live against the local Storage API — see
+-- the Task 15 report for the curl transcript), since that route's whole purpose is to
+-- serve public-bucket content without requiring auth or a select policy. Only the
+-- list/enumerate path (and any other read through the RLS-checked Data API) is closed
+-- by this migration.
+drop policy "report_photos_public_select" on storage.objects;
