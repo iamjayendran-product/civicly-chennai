@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { t } from '@/lib/i18n';
 import { processPhoto } from '@/lib/images/processPhoto';
 
@@ -18,24 +18,50 @@ export interface PhotoCaptureProps {
 
 export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // Mirrors the `photos` prop, but updated synchronously the instant a batch commits.
+  // `processPhoto` runs MediaPipe face detection and can take a noticeable moment, so a
+  // user can pick a second batch while the first is still processing. Both calls would
+  // otherwise read the same stale `photos` closure and the second onChange would
+  // overwrite whatever the first had already committed. Committing through this ref
+  // instead means the second batch is built on top of the first's result.
+  const photosRef = useRef(photos);
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const remaining = max - photos.length;
+    const remaining = max - photosRef.current.length;
     const toProcess = Array.from(files).slice(0, remaining);
-    const processed = await Promise.all(
+    setError(null);
+    const results = await Promise.allSettled(
       toProcess.map(async (file) => {
         const { blob, blurred } = await processPhoto(file);
         return { blob, blurred, previewUrl: URL.createObjectURL(blob) };
       })
     );
-    onChange([...photos, ...processed]);
+    const processed: CapturedPhoto[] = [];
+    let hadFailure = false;
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        processed.push(result.value);
+      } else {
+        hadFailure = true;
+      }
+    }
+    if (hadFailure) setError(t('report.photos.processingFailed'));
+    if (processed.length === 0) return;
+    const next = [...photosRef.current, ...processed];
+    photosRef.current = next;
+    onChange(next);
   }
 
   function removeAt(index: number) {
     const next = photos.slice();
     const [removed] = next.splice(index, 1);
     if (removed) URL.revokeObjectURL(removed.previewUrl);
+    photosRef.current = next;
     onChange(next);
   }
 
@@ -51,7 +77,7 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
               type="button"
               onClick={() => removeAt(index)}
               className="absolute -right-1 -top-1 rounded-full bg-gray-900 text-xs text-white"
-              aria-label="Remove photo"
+              aria-label={t('report.photos.remove')}
             >
               ✕
             </button>
@@ -68,6 +94,7 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
         )}
       </div>
       <p className="mt-1 text-xs text-gray-500">{t('report.photos.count', { count: photos.length })}</p>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
       <input
         ref={inputRef}
         type="file"
@@ -75,7 +102,14 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
         capture="environment"
         multiple
         className="hidden"
-        onChange={(event) => handleFiles(event.target.files)}
+        onChange={(event) => {
+          const { files } = event.target;
+          // Reset immediately (same tick as reading `files`) so the browser fires
+          // onChange again if the same file is re-picked after being removed — it
+          // otherwise treats an unchanged file list as a no-op change.
+          event.target.value = '';
+          handleFiles(files);
+        }}
       />
     </div>
   );
