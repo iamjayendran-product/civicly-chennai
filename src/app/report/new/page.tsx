@@ -13,7 +13,7 @@ import { t, errorCodeToMessage } from '@/lib/i18n';
 
 export default function NewReportPage() {
   const router = useRouter();
-  const { userId, loading: sessionLoading } = useSession();
+  const { userId, loading: sessionLoading, error: sessionError } = useSession();
   const [category, setCategory] = useState<ReportCategory>('pothole');
   const [subtype, setSubtype] = useState<ReportSubtype | null>(null);
   const [note, setNote] = useState('');
@@ -107,11 +107,26 @@ export default function NewReportPage() {
         maxLength={280}
         className="rounded-lg border border-gray-300 p-2 text-sm"
       />
+      {draftErrors.length > 0 && (
+        <ul className="flex flex-col gap-0.5 text-xs text-amber-700">
+          {draftErrors.map((code) => (
+            <li key={code}>{t(`report.errors.${code}`)}</li>
+          ))}
+        </ul>
+      )}
+      {/* Distinct from draftErrors above: this covers the case where local validation
+          passes but the anonymous session never produced a usable user id (e.g. the
+          Turnstile/signInAnonymously bootstrap failed in a way that clears `loading`
+          without setting `error`). Without this, Submit would show enabled-looking
+          feedback state with no explanation for why handleSubmit silently no-ops. */}
+      {!sessionLoading && !userId && (
+        <p className="text-sm text-red-600">{sessionError ?? errorCodeToMessage('AUTH_REQUIRED')}</p>
+      )}
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={draftErrors.length > 0 || submitting || sessionLoading}
+        disabled={draftErrors.length > 0 || submitting || sessionLoading || !userId}
         className="rounded-lg bg-red-600 py-3 text-center font-medium text-white disabled:opacity-50"
       >
         {submitting ? t('report.submitting') : t('report.submit')}
