@@ -164,11 +164,25 @@ export function MapView() {
     <div className="relative h-dvh w-full">
       <div ref={containerRef} className="h-full w-full" />
       <div className="absolute top-0 w-full bg-surface/90 backdrop-blur-md">
-        <div className="p-2">
+        <div className="flex items-center justify-between gap-2 p-2">
           <LocationSearch
             onSelect={(place) => mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 })}
-            className="max-w-[220px]"
+            className="max-w-[180px]"
           />
+          {/* The primary call-to-action on this page — kept in the header row (not
+              bottom-fixed) so browser chrome (address bar, bookmarks/download bars)
+              can never cover it; deliberately the boldest, only-labeled button here so
+              it's the obvious next step for a first-time visitor. */}
+          <Link
+            href="/report/new"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(255,59,48,0.45)] transition-transform hover:scale-105"
+          >
+            <span aria-hidden="true" className="text-lg leading-none">
+              +
+            </span>
+            <span className="hidden sm:inline">{t('map.reportButton')}</span>
+            <span className="sm:hidden">{t('map.reportButtonShort')}</span>
+          </Link>
         </div>
         <Filters
           selectedCategory={selectedCategory}
@@ -183,18 +197,6 @@ export function MapView() {
         </div>
       )}
       {selectedReport && <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />}
-      {/* The primary call-to-action on this page — deliberately the most visually
-          prominent element on screen (largest shadow, boldest color, only labeled
-          button) so it's the obvious next step for a first-time visitor. */}
-      <Link
-        href="/report/new"
-        className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary px-6 py-4 text-base font-semibold text-white shadow-[0_8px_24px_rgba(255,59,48,0.45)] transition-transform hover:scale-105"
-      >
-        <span aria-hidden="true" className="text-xl leading-none">
-          +
-        </span>
-        {t('map.reportButton')}
-      </Link>
     </div>
   );
 }
