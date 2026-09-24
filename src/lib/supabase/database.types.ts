@@ -73,6 +73,35 @@ export type Database = {
         }
         Relationships: []
       }
+      report_contacts: {
+        Row: {
+          created_at: string
+          name: string
+          phone: string
+          report_id: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          phone: string
+          report_id: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          phone?: string
+          report_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_contacts_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: true
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_owners: {
         Row: {
           report_id: string
@@ -201,6 +230,8 @@ export type Database = {
           p_note: string
           p_photo_blurred?: boolean[]
           p_photo_paths: string[]
+          p_reporter_name?: string
+          p_reporter_phone?: string
           p_subtype: Database["public"]["Enums"]["report_subtype"]
         }
         Returns: string

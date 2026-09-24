@@ -1,7 +1,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(16);
+select plan(21);
 
 -- Helper: a point well inside the CMDA boundary (central Chennai).
 -- lng=80.27, lat=13.06
@@ -72,6 +72,46 @@ select is(
   (select blurred from public.report_photos where storage_path = '11111111-1111-1111-1111-111111111111/blur-fallback.jpg'),
   false,
   'p_photo_blurred = array[false] is recorded as report_photos.blurred = false'
+);
+set local role authenticated;
+
+-- p_reporter_name/p_reporter_phone: the Submit dialog's mandatory fields, stored in
+-- report_contacts (never on public.reports/report_photos, per the same default-deny
+-- pattern as report_owners). Enforcement that they're present is client-side only, so
+-- the RPC accepts them as optional and simply stores whatever it's given.
+select lives_ok(
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/contact.jpg'], null, 'Jane Reporter', '9876543210') $$,
+  'create_report accepts p_reporter_name and p_reporter_phone'
+);
+reset role;
+select is(
+  (select name from public.report_contacts where report_id = (
+    select report_id from public.report_photos where storage_path = '11111111-1111-1111-1111-111111111111/contact.jpg'
+  )),
+  'Jane Reporter',
+  'report_contacts stores the given name'
+);
+select is(
+  (select phone from public.report_contacts where report_id = (
+    select report_id from public.report_photos where storage_path = '11111111-1111-1111-1111-111111111111/contact.jpg'
+  )),
+  '9876543210',
+  'report_contacts stores the given phone'
+);
+set local role authenticated;
+
+-- Omitting them stores no report_contacts row at all (nullable, not defaulted).
+select lives_ok(
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/no-contact.jpg']) $$,
+  'create_report still succeeds when p_reporter_name/p_reporter_phone are omitted'
+);
+reset role;
+select is(
+  (select count(*)::int from public.report_contacts where report_id = (
+    select report_id from public.report_photos where storage_path = '11111111-1111-1111-1111-111111111111/no-contact.jpg'
+  )),
+  0,
+  'omitting p_reporter_name/p_reporter_phone stores no report_contacts row'
 );
 set local role authenticated;
 

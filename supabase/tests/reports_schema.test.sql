@@ -1,7 +1,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(22);
+select plan(26);
 
 -- Tables exist
 select has_table('public', 'cmda_boundary', 'cmda_boundary table exists');
@@ -93,6 +93,34 @@ select throws_ok(
   '42501',
   null,
   'authenticated cannot select from report_owners'
+);
+reset role;
+
+-- report_contacts holds the mandatory reporter name/phone the Submit dialog collects.
+-- Same default-deny pattern as report_owners: plaintext PII, only ever written/read by
+-- the security definer create_report RPC, never exposed via the Data API.
+select has_table('public', 'report_contacts', 'report_contacts table exists');
+select ok(
+  (select relrowsecurity from pg_class where oid = 'public.report_contacts'::regclass),
+  'RLS is enabled on report_contacts'
+);
+insert into public.report_contacts (report_id, name, phone)
+select id, 'Test Reporter', '9999999999' from public.reports order by created_at desc limit 1;
+
+set local role anon;
+select throws_ok(
+  $$ select * from public.report_contacts $$,
+  '42501',
+  null,
+  'anon cannot select from report_contacts'
+);
+reset role;
+set local role authenticated;
+select throws_ok(
+  $$ select * from public.report_contacts $$,
+  '42501',
+  null,
+  'authenticated cannot select from report_contacts'
 );
 reset role;
 
