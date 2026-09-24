@@ -49,3 +49,29 @@ export function validateReportDraft(draft: ReportDraft): ReportDraftError[] {
 
   return errors;
 }
+
+export interface ReporterContact {
+  name: string;
+  phone: string;
+}
+
+export type ReporterContactError = 'NAME_REQUIRED' | 'PHONE_INVALID';
+
+// Indian mobile numbers: 10 digits, first digit 6-9. Formatting (spaces, a +91 country
+// code, dashes) is stripped before checking, since users type phone numbers every way.
+const INDIAN_MOBILE_PATTERN = /^[6-9]\d{9}$/;
+
+export function validateReporterContact(contact: ReporterContact): ReporterContactError[] {
+  const errors: ReporterContactError[] = [];
+
+  if (contact.name.trim().length === 0) {
+    errors.push('NAME_REQUIRED');
+  }
+
+  const digitsOnly = contact.phone.replace(/[^\d]/g, '').replace(/^91(?=\d{10}$)/, '');
+  if (!INDIAN_MOBILE_PATTERN.test(digitsOnly)) {
+    errors.push('PHONE_INVALID');
+  }
+
+  return errors;
+}

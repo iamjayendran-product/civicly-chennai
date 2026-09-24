@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateReportDraft, type ReportDraft } from './validation';
+import { validateReportDraft, validateReporterContact, type ReportDraft } from './validation';
 
 const validDraft: ReportDraft = {
   category: 'pothole',
@@ -48,5 +48,31 @@ describe('validateReportDraft', () => {
 
   it('accepts category other with a valid subtype', () => {
     expect(validateReportDraft({ ...validDraft, category: 'other', subtype: 'debris' })).toEqual([]);
+  });
+});
+
+describe('validateReporterContact', () => {
+  it('returns no errors for a valid name and phone', () => {
+    expect(validateReporterContact({ name: 'Jane Reporter', phone: '9876543210' })).toEqual([]);
+  });
+
+  it('requires a non-empty name', () => {
+    expect(validateReporterContact({ name: '', phone: '9876543210' })).toContain('NAME_REQUIRED');
+  });
+
+  it('requires a non-blank name', () => {
+    expect(validateReporterContact({ name: '   ', phone: '9876543210' })).toContain('NAME_REQUIRED');
+  });
+
+  it('rejects a phone number that is too short', () => {
+    expect(validateReporterContact({ name: 'Jane', phone: '98765' })).toContain('PHONE_INVALID');
+  });
+
+  it('rejects a phone number starting with an invalid digit', () => {
+    expect(validateReporterContact({ name: 'Jane', phone: '1234567890' })).toContain('PHONE_INVALID');
+  });
+
+  it('accepts a phone number with spaces or a country code, ignoring formatting', () => {
+    expect(validateReporterContact({ name: 'Jane', phone: '+91 98765 43210' })).toEqual([]);
   });
 });

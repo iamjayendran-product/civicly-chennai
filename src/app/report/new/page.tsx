@@ -6,7 +6,8 @@ import { CategoryPicker } from '@/components/report/CategoryPicker';
 import { PhotoCapture, type CapturedPhoto } from '@/components/report/PhotoCapture';
 import { LocationPicker } from '@/components/report/LocationPicker';
 import { DuplicateList } from '@/components/report/DuplicateList';
-import { validateReportDraft, type ReportCategory, type ReportSubtype } from '@/lib/report/validation';
+import { ReporterContactDialog } from '@/components/report/ReporterContactDialog';
+import { validateReportDraft, type ReportCategory, type ReportSubtype, type ReporterContact } from '@/lib/report/validation';
 import { getBrowserClient } from '@/lib/supabase/browser';
 import { useSession } from '@/components/auth/SessionProvider';
 import { t, errorCodeToMessage } from '@/lib/i18n';
@@ -22,6 +23,8 @@ export default function NewReportPage() {
   const [confirmedNotDuplicate, setConfirmedNotDuplicate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [contact, setContact] = useState<ReporterContact | null>(null);
+  const [showContactDialog, setShowContactDialog] = useState(false);
 
   const draftErrors = useMemo(
     () =>
@@ -35,7 +38,7 @@ export default function NewReportPage() {
     [category, subtype, note, photos.length, location]
   );
 
-  async function handleSubmit() {
+  async function handleSubmit(reporterContact: ReporterContact) {
     if (draftErrors.length > 0 || !location || !userId) return;
     setSubmitting(true);
     setErrorMessage(null);
@@ -66,6 +69,8 @@ export default function NewReportPage() {
         p_lat: location.lat,
         p_photo_paths: photoPaths,
         p_photo_blurred: photos.map((photo) => photo.blurred),
+        p_reporter_name: reporterContact.name,
+        p_reporter_phone: reporterContact.phone,
       });
 
       if (error) {
@@ -129,12 +134,30 @@ export default function NewReportPage() {
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
       <button
         type="button"
-        onClick={handleSubmit}
+        onClick={() => {
+          // Once collected, a contact isn't re-asked on retry (e.g. after a failed
+          // submit) — only a fresh page load clears it.
+          if (contact) {
+            handleSubmit(contact);
+          } else {
+            setShowContactDialog(true);
+          }
+        }}
         disabled={draftErrors.length > 0 || submitting || sessionLoading || !userId}
         className="rounded-lg bg-red-600 py-3 text-center font-medium text-white disabled:opacity-50"
       >
         {submitting ? t('report.submitting') : t('report.submit')}
       </button>
+      {showContactDialog && (
+        <ReporterContactDialog
+          onConfirm={(reporterContact) => {
+            setContact(reporterContact);
+            setShowContactDialog(false);
+            handleSubmit(reporterContact);
+          }}
+          onCancel={() => setShowContactDialog(false)}
+        />
+      )}
     </main>
   );
 }
