@@ -39,6 +39,8 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
       maxBounds: CMDA_MAX_BOUNDS,
     });
     mapRef.current = map;
+    // Zoom +/- and a compass (click to reset bearing/pitch, or drag to rotate).
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
     function setLocation(lng: number, lat: number) {
       markerRef.current?.setLngLat([lng, lat]);

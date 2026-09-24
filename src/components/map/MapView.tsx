@@ -69,6 +69,10 @@ export function MapView() {
       maxBounds: CMDA_MAX_BOUNDS,
     });
     mapRef.current = map;
+    // Zoom +/- and a compass (click to reset bearing/pitch, or drag to rotate). Bottom-left
+    // avoids the top search/filter bar and the "Report a Grievance" button, both of which
+    // already occupy the top and bottom-right/bottom-center.
+    map.addControl(new maplibregl.NavigationControl(), 'bottom-left');
 
     function updateBboxFromMap() {
       setBbox(boundsToBboxParams(map.getBounds()));
@@ -159,9 +163,12 @@ export function MapView() {
   return (
     <div className="relative h-dvh w-full">
       <div ref={containerRef} className="h-full w-full" />
-      <div className="absolute top-0 w-full bg-surface/90">
+      <div className="absolute top-0 w-full bg-surface/90 backdrop-blur-md">
         <div className="p-2">
-          <LocationSearch onSelect={(place) => mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 })} />
+          <LocationSearch
+            onSelect={(place) => mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 })}
+            className="max-w-[220px]"
+          />
         </div>
         <Filters
           selectedCategory={selectedCategory}
@@ -176,12 +183,17 @@ export function MapView() {
         </div>
       )}
       {selectedReport && <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />}
+      {/* The primary call-to-action on this page — deliberately the most visually
+          prominent element on screen (largest shadow, boldest color, only labeled
+          button) so it's the obvious next step for a first-time visitor. */}
       <Link
         href="/report/new"
-        aria-label={t('map.reportButton')}
-        className="absolute bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-3xl font-semibold text-white shadow-lg"
+        className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary px-6 py-4 text-base font-semibold text-white shadow-[0_8px_24px_rgba(255,59,48,0.45)] transition-transform hover:scale-105"
       >
-        +
+        <span aria-hidden="true" className="text-xl leading-none">
+          +
+        </span>
+        {t('map.reportButton')}
       </Link>
     </div>
   );
