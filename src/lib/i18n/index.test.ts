@@ -3,7 +3,7 @@ import { t, errorCodeToMessage } from './index';
 
 describe('t', () => {
   it('returns the English string for a known key', () => {
-    expect(t('report.submit')).toBe('Submit report');
+    expect(t('report.submit')).toBe('Submit grievance');
   });
 
   it('interpolates variables', () => {

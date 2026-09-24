@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { CategoryPicker } from '@/components/report/CategoryPicker';
 import { PhotoCapture, type CapturedPhoto } from '@/components/report/PhotoCapture';
 import { LocationPicker } from '@/components/report/LocationPicker';
 import { DuplicateList } from '@/components/report/DuplicateList';
-import { ReporterContactDialog } from '@/components/report/ReporterContactDialog';
-import { validateReportDraft, type ReportCategory, type ReportSubtype, type ReporterContact } from '@/lib/report/validation';
+import {
+  validateReportDraft,
+  validateReporterContact,
+  type ReportCategory,
+  type ReportSubtype,
+} from '@/lib/report/validation';
 import { getBrowserClient } from '@/lib/supabase/browser';
 import { useSession } from '@/components/auth/SessionProvider';
 import { t, errorCodeToMessage } from '@/lib/i18n';
@@ -39,7 +43,6 @@ function useIsLargeScreen() {
 }
 
 export default function NewReportPage() {
-  const router = useRouter();
   const { userId, loading: sessionLoading, error: sessionError } = useSession();
   const [category, setCategory] = useState<ReportCategory>('pothole');
   const [subtype, setSubtype] = useState<ReportSubtype | null>(null);
@@ -47,10 +50,11 @@ export default function NewReportPage() {
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [location, setLocation] = useState<{ lng: number; lat: number } | null>(null);
   const [confirmedNotDuplicate, setConfirmedNotDuplicate] = useState(false);
+  const [reporterName, setReporterName] = useState('');
+  const [reporterPhone, setReporterPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [contact, setContact] = useState<ReporterContact | null>(null);
-  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [submittedReportId, setSubmittedReportId] = useState<string | null>(null);
   const isLargeScreen = useIsLargeScreen();
   const [indexPanePercent, setIndexPanePercent] = useState(DEFAULT_INDEX_PANE_PERCENT);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -83,9 +87,13 @@ export default function NewReportPage() {
       }),
     [category, subtype, note, photos.length, location]
   );
+  const contactErrors = useMemo(
+    () => validateReporterContact({ name: reporterName, phone: reporterPhone }),
+    [reporterName, reporterPhone]
+  );
 
-  async function handleSubmit(reporterContact: ReporterContact) {
-    if (draftErrors.length > 0 || !location || !userId) return;
+  async function handleSubmit() {
+    if (draftErrors.length > 0 || contactErrors.length > 0 || !location || !userId) return;
     setSubmitting(true);
     setErrorMessage(null);
     try {
@@ -107,7 +115,7 @@ export default function NewReportPage() {
       // treat these as nullable — subtype is required only when category is 'other').
       // The casts below are needed to satisfy that generated type; the value sent over
       // the wire is unchanged (`null` when there's no note/subtype).
-      const { error } = await supabase.rpc('create_report', {
+      const { data: reportId, error } = await supabase.rpc('create_report', {
         p_category: category,
         p_subtype: (category === 'other' ? subtype : null) as ReportSubtype,
         p_note: (note || null) as string,
@@ -115,8 +123,8 @@ export default function NewReportPage() {
         p_lat: location.lat,
         p_photo_paths: photoPaths,
         p_photo_blurred: photos.map((photo) => photo.blurred),
-        p_reporter_name: reporterContact.name,
-        p_reporter_phone: reporterContact.phone,
+        p_reporter_name: reporterName.trim(),
+        p_reporter_phone: reporterPhone.trim(),
       });
 
       if (error) {
@@ -124,10 +132,10 @@ export default function NewReportPage() {
         return;
       }
 
-      // /r/[id] doesn't exist yet in this slice (out of scope for MVP); the map's
-      // Realtime subscription picks up the new report and shows it live, which is
-      // what matters for the MVP loop. Revisit once /r/[id] ships.
-      router.push('/');
+      // Stay on this page and show a confirmation instead of redirecting immediately —
+      // the "see your grievance reported" link below carries the new id to the map via
+      // ?focus=, which MapView uses to fly to and open that pin's sheet.
+      setSubmittedReportId(reportId);
     } catch {
       setErrorMessage(errorCodeToMessage('UNKNOWN'));
     } finally {
@@ -166,73 +174,95 @@ export default function NewReportPage() {
         className="flex flex-col gap-4 border-line bg-surface/70 backdrop-blur-xl backdrop-saturate-150 lg:h-full lg:overflow-y-auto lg:border-l lg:p-6 lg:shadow-2xl"
         style={isLargeScreen ? { width: `${indexPanePercent}%` } : undefined}
       >
-        <CategoryPicker
-          category={category}
-          subtype={subtype}
-          onChangeCategory={(nextCategory) => {
-            setCategory(nextCategory);
-            // Keep in sync with validateReportDraft's SUBTYPE_NOT_ALLOWED rule (and the
-            // DB check constraint): subtype only makes sense for 'other'. Without this,
-            // picking a subtype under 'other' and then switching away leaves subtype set
-            // and submit permanently (and silently) disabled.
-            if (nextCategory !== 'other') setSubtype(null);
-          }}
-          onChangeSubtype={setSubtype}
-        />
-        <PhotoCapture photos={photos} onChange={setPhotos} />
-        {location && !confirmedNotDuplicate && (
-          <DuplicateList lng={location.lng} lat={location.lat} category={category} onContinue={() => setConfirmedNotDuplicate(true)} />
+        <Link href="/" className="flex w-fit items-center gap-1 text-sm font-medium text-secondary">
+          <span aria-hidden="true">←</span>
+          {t('nav.home')}
+        </Link>
+
+        {submittedReportId ? (
+          <div className="flex flex-col gap-2 rounded-xl bg-surface-muted p-4">
+            <p className="text-sm font-medium text-foreground">{t('report.success.title')}</p>
+            <Link href={`/?focus=${submittedReportId}`} className="text-xs text-secondary underline">
+              {t('report.success.viewLink')}
+            </Link>
+          </div>
+        ) : (
+          <>
+            <CategoryPicker
+              category={category}
+              subtype={subtype}
+              onChangeCategory={(nextCategory) => {
+                setCategory(nextCategory);
+                // Keep in sync with validateReportDraft's SUBTYPE_NOT_ALLOWED rule (and the
+                // DB check constraint): subtype only makes sense for 'other'. Without this,
+                // picking a subtype under 'other' and then switching away leaves subtype set
+                // and submit permanently (and silently) disabled.
+                if (nextCategory !== 'other') setSubtype(null);
+              }}
+              onChangeSubtype={setSubtype}
+            />
+            <PhotoCapture photos={photos} onChange={setPhotos} />
+            {location && !confirmedNotDuplicate && (
+              <DuplicateList
+                lng={location.lng}
+                lat={location.lat}
+                category={category}
+                onContinue={() => setConfirmedNotDuplicate(true)}
+              />
+            )}
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder={t('report.note.placeholder')}
+              maxLength={280}
+              className="rounded-xl border border-line p-2 text-sm"
+            />
+            <div className="flex flex-col gap-3 rounded-xl border border-line p-3">
+              <p className="text-sm font-medium">{t('report.contact.title')}</p>
+              <input
+                type="text"
+                value={reporterName}
+                onChange={(event) => setReporterName(event.target.value)}
+                placeholder={t('report.contact.namePlaceholder')}
+                className="rounded-xl border border-line p-2 text-sm"
+              />
+              <input
+                type="tel"
+                value={reporterPhone}
+                onChange={(event) => setReporterPhone(event.target.value)}
+                placeholder={t('report.contact.phonePlaceholder')}
+                className="rounded-xl border border-line p-2 text-sm"
+              />
+            </div>
+            {(draftErrors.length > 0 || contactErrors.length > 0) && (
+              <ul className="flex flex-col gap-0.5 text-xs text-warning">
+                {draftErrors.map((code) => (
+                  <li key={code}>{t(`report.errors.${code}`)}</li>
+                ))}
+                {contactErrors.includes('NAME_REQUIRED') && <li>{t('report.contact.nameRequired')}</li>}
+                {contactErrors.includes('PHONE_INVALID') && <li>{t('report.contact.phoneInvalid')}</li>}
+              </ul>
+            )}
+            {/* Distinct from draftErrors above: this covers the case where local validation
+                passes but the anonymous session never produced a usable user id (e.g. the
+                Turnstile/signInAnonymously bootstrap failed in a way that clears `loading`
+                without setting `error`). Without this, Submit would show enabled-looking
+                feedback state with no explanation for why handleSubmit silently no-ops. */}
+            {!sessionLoading && !userId && (
+              <p className="text-sm text-primary">{sessionError ?? errorCodeToMessage('AUTH_REQUIRED')}</p>
+            )}
+            {errorMessage && <p className="text-sm text-primary">{errorMessage}</p>}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={draftErrors.length > 0 || contactErrors.length > 0 || submitting || sessionLoading || !userId}
+              className="rounded-xl bg-primary py-3 text-center font-medium text-white disabled:opacity-50"
+            >
+              {submitting ? t('report.submitting') : t('report.submit')}
+            </button>
+          </>
         )}
-        <textarea
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          placeholder={t('report.note.placeholder')}
-          maxLength={280}
-          className="rounded-xl border border-line p-2 text-sm"
-        />
-        {draftErrors.length > 0 && (
-          <ul className="flex flex-col gap-0.5 text-xs text-warning">
-            {draftErrors.map((code) => (
-              <li key={code}>{t(`report.errors.${code}`)}</li>
-            ))}
-          </ul>
-        )}
-        {/* Distinct from draftErrors above: this covers the case where local validation
-            passes but the anonymous session never produced a usable user id (e.g. the
-            Turnstile/signInAnonymously bootstrap failed in a way that clears `loading`
-            without setting `error`). Without this, Submit would show enabled-looking
-            feedback state with no explanation for why handleSubmit silently no-ops. */}
-        {!sessionLoading && !userId && (
-          <p className="text-sm text-primary">{sessionError ?? errorCodeToMessage('AUTH_REQUIRED')}</p>
-        )}
-        {errorMessage && <p className="text-sm text-primary">{errorMessage}</p>}
-        <button
-          type="button"
-          onClick={() => {
-            // Once collected, a contact isn't re-asked on retry (e.g. after a failed
-            // submit) — only a fresh page load clears it.
-            if (contact) {
-              handleSubmit(contact);
-            } else {
-              setShowContactDialog(true);
-            }
-          }}
-          disabled={draftErrors.length > 0 || submitting || sessionLoading || !userId}
-          className="rounded-xl bg-primary py-3 text-center font-medium text-white disabled:opacity-50"
-        >
-          {submitting ? t('report.submitting') : t('report.submit')}
-        </button>
       </div>
-      {showContactDialog && (
-        <ReporterContactDialog
-          onConfirm={(reporterContact) => {
-            setContact(reporterContact);
-            setShowContactDialog(false);
-            handleSubmit(reporterContact);
-          }}
-          onCancel={() => setShowContactDialog(false)}
-        />
-      )}
     </main>
   );
 }

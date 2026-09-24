@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import { MapView } from '@/components/map/MapView';
 
 export default function Home() {
-  return <MapView />;
+  return (
+    <Suspense>
+      <MapView />
+    </Suspense>
+  );
 }

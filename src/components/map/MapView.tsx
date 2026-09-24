@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -48,6 +49,10 @@ function reportsToGeoJson(reports: ReportPin[]): GeoJSON.FeatureCollection {
 }
 
 export function MapView() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const focusReportId = searchParams.get('focus');
+  const hasFocusedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const reportsRef = useRef<ReportPin[]>([]);
@@ -58,6 +63,19 @@ export function MapView() {
 
   const { reports, status } = useReports(bbox, showFixed);
   const visibleReports = selectedCategory ? reports.filter((r) => r.category === selectedCategory) : reports;
+
+  // Arriving via the post-submit "see your grievance" link: once that report shows up
+  // in the loaded set, fly to it and open its sheet. Runs once per page load (a ref
+  // guard, not state, so it doesn't re-fire if the user later clears the selection).
+  useEffect(() => {
+    if (!focusReportId || hasFocusedRef.current) return;
+    const report = reports.find((r) => r.id === focusReportId);
+    if (!report || !mapRef.current) return;
+    hasFocusedRef.current = true;
+    mapRef.current.flyTo({ center: [report.lng, report.lat], zoom: 16 });
+    setSelectedReport(report);
+    router.replace('/', { scroll: false });
+  }, [reports, focusReportId, router]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -165,10 +183,14 @@ export function MapView() {
       <div ref={containerRef} className="h-full w-full" />
       <div className="absolute top-0 w-full bg-surface/90 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2 p-2">
-          <LocationSearch
-            onSelect={(place) => mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 })}
-            className="max-w-[180px]"
-          />
+          <div className="min-w-0 flex-1">
+            <Filters
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              showFixed={showFixed}
+              onToggleShowFixed={setShowFixed}
+            />
+          </div>
           {/* The primary call-to-action on this page — kept in the header row (not
               bottom-fixed) so browser chrome (address bar, bookmarks/download bars)
               can never cover it; deliberately the boldest, only-labeled button here so
@@ -184,12 +206,12 @@ export function MapView() {
             <span className="sm:hidden">{t('map.reportButtonShort')}</span>
           </Link>
         </div>
-        <Filters
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-          showFixed={showFixed}
-          onToggleShowFixed={setShowFixed}
-        />
+        <div className="px-2 pb-2">
+          <LocationSearch
+            onSelect={(place) => mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 })}
+            className="max-w-[180px]"
+          />
+        </div>
       </div>
       {status === 'paused' && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 rounded-full bg-black/75 px-3 py-1 text-xs text-white">
