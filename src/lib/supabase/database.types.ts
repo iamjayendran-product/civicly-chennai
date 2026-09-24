@@ -204,6 +204,20 @@ export type Database = {
         }
         Returns: string
       }
+      nearby_reports: {
+        Args: {
+          p_category: Database["public"]["Enums"]["report_category"]
+          p_lat: number
+          p_lng: number
+          p_radius_m?: number
+        }
+        Returns: {
+          created_at: string
+          id: string
+          subtype: Database["public"]["Enums"]["report_subtype"]
+          upvote_count: number
+        }[]
+      }
       reports_in_bbox: {
         Args: {
           p_include_fixed?: boolean
