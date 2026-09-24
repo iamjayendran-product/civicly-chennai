@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -168,6 +169,13 @@ export function MapView() {
         </div>
       )}
       {selectedReport && <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />}
+      <Link
+        href="/report/new"
+        aria-label={t('map.reportButton')}
+        className="absolute bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-3xl font-semibold text-white shadow-lg"
+      >
+        +
+      </Link>
     </div>
   );
 }
