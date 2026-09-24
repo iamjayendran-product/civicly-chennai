@@ -42,7 +42,7 @@ export function DuplicateList({ lng, lat, category, onContinue }: DuplicateListP
       <ul className="mt-2 flex flex-col gap-2">
         {candidates.map((candidate) => (
           <li key={candidate.id} className="flex items-center justify-between text-sm">
-            <span>{candidate.upvote_count} +1</span>
+            <span>{t('pinSheet.upvotes', { count: candidate.upvote_count })}</span>
             <span className="text-xs text-gray-500">{t('report.duplicates.signInToConfirm')}</span>
           </li>
         ))}
