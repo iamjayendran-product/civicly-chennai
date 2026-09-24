@@ -136,8 +136,12 @@ export default function NewReportPage() {
       // the "see your grievance reported" link below carries the new id to the map via
       // ?focus=, which MapView uses to fly to and open that pin's sheet.
       setSubmittedReportId(reportId);
-    } catch {
-      setErrorMessage(errorCodeToMessage('UNKNOWN'));
+    } catch (err) {
+      // Swallowing this with no trace made every failure here indistinguishable —
+      // network hiccups, a storage error, anything. Logging the real error means a
+      // report of "something went wrong" can actually be diagnosed from devtools.
+      console.error('[report submit] failed:', err);
+      setErrorMessage(errorCodeToMessage(err instanceof Error ? err.message : 'UNKNOWN'));
     } finally {
       setSubmitting(false);
     }

@@ -83,7 +83,7 @@ export function MapView() {
       container: containerRef.current,
       style: MAP_STYLE_URL,
       center: [CMDA_CENTER.lng, CMDA_CENTER.lat],
-      zoom: 10,
+      zoom: 12,
       maxBounds: CMDA_MAX_BOUNDS,
     });
     mapRef.current = map;
