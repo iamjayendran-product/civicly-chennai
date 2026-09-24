@@ -30,10 +30,10 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
   }, [photos]);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
+  async function handleFiles(files: File[]) {
+    if (files.length === 0) return;
     const remaining = max - photosRef.current.length;
-    const toProcess = Array.from(files).slice(0, remaining);
+    const toProcess = files.slice(0, remaining);
     setError(null);
     const results = await Promise.allSettled(
       toProcess.map(async (file) => {
@@ -103,12 +103,17 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
         multiple
         className="hidden"
         onChange={(event) => {
-          const { files } = event.target;
-          // Reset immediately (same tick as reading `files`) so the browser fires
-          // onChange again if the same file is re-picked after being removed — it
-          // otherwise treats an unchanged file list as a no-op change.
+          // `event.target.files` is a live FileList: per spec, resetting `.value` empties
+          // the list of selected files in place rather than swapping in a fresh FileList,
+          // so a plain `const { files } = event.target` reference goes empty the instant
+          // `.value` is reset below (verified: this silently broke every photo attachment
+          // after that reset was added). Snapshot into a plain File[] first.
+          const selected = Array.from(event.target.files ?? []);
+          // Reset immediately so the browser fires onChange again if the same file is
+          // re-picked after being removed — it otherwise treats an unchanged file list as
+          // a no-op change.
           event.target.value = '';
-          handleFiles(files);
+          handleFiles(selected);
         }}
       />
     </div>
