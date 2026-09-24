@@ -58,13 +58,14 @@ export default function NewReportPage() {
       // treat these as nullable — subtype is required only when category is 'other').
       // The casts below are needed to satisfy that generated type; the value sent over
       // the wire is unchanged (`null` when there's no note/subtype).
-      const { data: reportId, error } = await supabase.rpc('create_report', {
+      const { error } = await supabase.rpc('create_report', {
         p_category: category,
         p_subtype: (category === 'other' ? subtype : null) as ReportSubtype,
         p_note: (note || null) as string,
         p_lng: location.lng,
         p_lat: location.lat,
         p_photo_paths: photoPaths,
+        p_photo_blurred: photos.map((photo) => photo.blurred),
       });
 
       if (error) {
@@ -72,7 +73,10 @@ export default function NewReportPage() {
         return;
       }
 
-      router.push(`/r/${reportId}`);
+      // /r/[id] doesn't exist yet in this slice (out of scope for MVP); the map's
+      // Realtime subscription picks up the new report and shows it live, which is
+      // what matters for the MVP loop. Revisit once /r/[id] ships.
+      router.push('/');
     } catch {
       setErrorMessage(errorCodeToMessage('UNKNOWN'));
     } finally {
