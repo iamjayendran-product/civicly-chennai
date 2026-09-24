@@ -199,6 +199,7 @@ export type Database = {
           p_lat: number
           p_lng: number
           p_note: string
+          p_photo_blurred?: boolean[]
           p_photo_paths: string[]
           p_subtype: Database["public"]["Enums"]["report_subtype"]
         }

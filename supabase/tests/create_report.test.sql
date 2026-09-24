@@ -1,7 +1,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(13);
+select plan(16);
 
 -- Helper: a point well inside the CMDA boundary (central Chennai).
 -- lng=80.27, lat=13.06
@@ -49,9 +49,29 @@ select is(
   'exactly one report_photos row was inserted'
 );
 select is(
+  (select rp.blurred from public.report_photos rp join public.report_owners o on o.report_id = rp.report_id where o.reporter_id = '11111111-1111-1111-1111-111111111111'),
+  true,
+  'omitting p_photo_blurred defaults report_photos.blurred to true'
+);
+select is(
   (select count(*)::int from public.rate_events where user_id = '11111111-1111-1111-1111-111111111111' and action = 'report'),
   1,
   'a rate_events row was logged'
+);
+set local role authenticated;
+
+-- p_photo_blurred: an explicit false must be recorded on the photo row, since this is
+-- the privacy fallback signal that flags an unblurred (possibly face-bearing) photo
+-- "for later review".
+select lives_ok(
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/blur-fallback.jpg'], array[false]) $$,
+  'create_report accepts an explicit p_photo_blurred array'
+);
+reset role;
+select is(
+  (select blurred from public.report_photos where storage_path = '11111111-1111-1111-1111-111111111111/blur-fallback.jpg'),
+  false,
+  'p_photo_blurred = array[false] is recorded as report_photos.blurred = false'
 );
 set local role authenticated;
 
