@@ -9,6 +9,7 @@ import { CMDA_CENTER, CMDA_MAX_BOUNDS, boundsToBboxParams } from '@/lib/geo/cmda
 import { useReports, type ReportPin } from '@/lib/realtime/useReports';
 import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
+import { LocationSearch } from './LocationSearch';
 import { t } from '@/lib/i18n';
 import type { Database } from '@/lib/supabase/database.types';
 
@@ -156,6 +157,9 @@ export function MapView() {
     <div className="relative h-dvh w-full">
       <div ref={containerRef} className="h-full w-full" />
       <div className="absolute top-0 w-full bg-white/90">
+        <div className="p-2">
+          <LocationSearch onSelect={(place) => mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 })} />
+        </div>
         <Filters
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}

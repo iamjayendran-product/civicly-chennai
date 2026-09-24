@@ -5,6 +5,8 @@ import * as maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CMDA_CENTER, CMDA_MAX_BOUNDS } from '@/lib/geo/cmda';
+import type { PlaceResult } from '@/lib/geo/placeSearch';
+import { LocationSearch } from '@/components/map/LocationSearch';
 import { t } from '@/lib/i18n';
 
 const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
@@ -23,11 +25,12 @@ export interface LocationPickerProps {
 
 export function LocationPicker({ onChange }: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const markerRef = useRef<Marker | null>(null);
   const [gpsDenied, setGpsDenied] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
-    let marker: Marker;
     const map: MapLibreMap = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE_URL,
@@ -35,14 +38,16 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
       zoom: 12,
       maxBounds: CMDA_MAX_BOUNDS,
     });
+    mapRef.current = map;
 
     function setLocation(lng: number, lat: number) {
-      marker.setLngLat([lng, lat]);
+      markerRef.current?.setLngLat([lng, lat]);
       onChange({ lng, lat });
     }
 
     map.on('load', () => {
-      marker = new maplibregl.Marker({ draggable: true }).setLngLat([CMDA_CENTER.lng, CMDA_CENTER.lat]).addTo(map);
+      const marker = new maplibregl.Marker({ draggable: true }).setLngLat([CMDA_CENTER.lng, CMDA_CENTER.lat]).addTo(map);
+      markerRef.current = marker;
       marker.on('dragend', () => {
         const { lng, lat } = marker.getLngLat();
         setLocation(lng, lat);
@@ -63,11 +68,24 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
       }
     });
 
-    return () => map.remove();
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      markerRef.current = null;
+    };
   }, [onChange]);
+
+  function handleSearchSelect(place: PlaceResult) {
+    mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 16 });
+    markerRef.current?.setLngLat([place.lng, place.lat]);
+    onChange({ lng: place.lng, lat: place.lat });
+  }
 
   return (
     <div>
+      <div className="mb-2">
+        <LocationSearch onSelect={handleSearchSelect} />
+      </div>
       <div ref={containerRef} className="h-64 w-full rounded-lg" />
       <p className="mt-1 text-xs text-gray-500">{gpsDenied ? t('report.location.gpsDenied') : t('report.location.dragHint')}</p>
     </div>
