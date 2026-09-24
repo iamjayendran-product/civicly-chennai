@@ -82,12 +82,14 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
   }
 
   return (
-    <div>
-      <div className="mb-2">
+    <div className="lg:relative lg:flex lg:h-full lg:flex-col">
+      <div className="mb-2 lg:absolute lg:z-10 lg:m-3 lg:w-72">
         <LocationSearch onSelect={handleSearchSelect} />
       </div>
-      <div ref={containerRef} className="h-64 w-full rounded-lg" />
-      <p className="mt-1 text-xs text-gray-500">{gpsDenied ? t('report.location.gpsDenied') : t('report.location.dragHint')}</p>
+      <div ref={containerRef} className="h-64 w-full rounded-lg lg:h-full lg:flex-1 lg:rounded-none" />
+      <p className="mt-1 text-xs text-gray-500 lg:absolute lg:bottom-3 lg:left-3 lg:z-10 lg:mt-0 lg:rounded lg:bg-white/90 lg:px-2 lg:py-1">
+        {gpsDenied ? t('report.location.gpsDenied') : t('report.location.dragHint')}
+      </p>
     </div>
   );
 }

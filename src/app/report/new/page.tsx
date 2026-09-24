@@ -90,64 +90,71 @@ export default function NewReportPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-4 p-4">
-      <CategoryPicker
-        category={category}
-        subtype={subtype}
-        onChangeCategory={(nextCategory) => {
-          setCategory(nextCategory);
-          // Keep in sync with validateReportDraft's SUBTYPE_NOT_ALLOWED rule (and the
-          // DB check constraint): subtype only makes sense for 'other'. Without this,
-          // picking a subtype under 'other' and then switching away leaves subtype set
-          // and submit permanently (and silently) disabled.
-          if (nextCategory !== 'other') setSubtype(null);
-        }}
-        onChangeSubtype={setSubtype}
-      />
-      <PhotoCapture photos={photos} onChange={setPhotos} />
-      <LocationPicker onChange={setLocation} />
-      {location && !confirmedNotDuplicate && (
-        <DuplicateList lng={location.lng} lat={location.lat} category={category} onContinue={() => setConfirmedNotDuplicate(true)} />
-      )}
-      <textarea
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        placeholder={t('report.note.placeholder')}
-        maxLength={280}
-        className="rounded-lg border border-gray-300 p-2 text-sm"
-      />
-      {draftErrors.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-xs text-amber-700">
-          {draftErrors.map((code) => (
-            <li key={code}>{t(`report.errors.${code}`)}</li>
-          ))}
-        </ul>
-      )}
-      {/* Distinct from draftErrors above: this covers the case where local validation
-          passes but the anonymous session never produced a usable user id (e.g. the
-          Turnstile/signInAnonymously bootstrap failed in a way that clears `loading`
-          without setting `error`). Without this, Submit would show enabled-looking
-          feedback state with no explanation for why handleSubmit silently no-ops. */}
-      {!sessionLoading && !userId && (
-        <p className="text-sm text-red-600">{sessionError ?? errorCodeToMessage('AUTH_REQUIRED')}</p>
-      )}
-      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
-      <button
-        type="button"
-        onClick={() => {
-          // Once collected, a contact isn't re-asked on retry (e.g. after a failed
-          // submit) — only a fresh page load clears it.
-          if (contact) {
-            handleSubmit(contact);
-          } else {
-            setShowContactDialog(true);
-          }
-        }}
-        disabled={draftErrors.length > 0 || submitting || sessionLoading || !userId}
-        className="rounded-lg bg-red-600 py-3 text-center font-medium text-white disabled:opacity-50"
-      >
-        {submitting ? t('report.submitting') : t('report.submit')}
-      </button>
+    <main className="mx-auto flex w-full max-w-md flex-col gap-4 p-4 lg:mx-0 lg:h-dvh lg:max-w-none lg:flex-row lg:gap-0 lg:p-0">
+      {/* Full-height map on desktop (per src/CLAUDE.md's mobile-first note, this only
+          changes layout at the lg: breakpoint — mobile keeps the original single-column
+          stacked flow with the map inline like every other field). */}
+      <div className="lg:h-full lg:w-1/2">
+        <LocationPicker onChange={setLocation} />
+      </div>
+      <div className="flex flex-col gap-4 lg:h-full lg:w-1/2 lg:overflow-y-auto lg:p-6">
+        <CategoryPicker
+          category={category}
+          subtype={subtype}
+          onChangeCategory={(nextCategory) => {
+            setCategory(nextCategory);
+            // Keep in sync with validateReportDraft's SUBTYPE_NOT_ALLOWED rule (and the
+            // DB check constraint): subtype only makes sense for 'other'. Without this,
+            // picking a subtype under 'other' and then switching away leaves subtype set
+            // and submit permanently (and silently) disabled.
+            if (nextCategory !== 'other') setSubtype(null);
+          }}
+          onChangeSubtype={setSubtype}
+        />
+        <PhotoCapture photos={photos} onChange={setPhotos} />
+        {location && !confirmedNotDuplicate && (
+          <DuplicateList lng={location.lng} lat={location.lat} category={category} onContinue={() => setConfirmedNotDuplicate(true)} />
+        )}
+        <textarea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder={t('report.note.placeholder')}
+          maxLength={280}
+          className="rounded-lg border border-gray-300 p-2 text-sm"
+        />
+        {draftErrors.length > 0 && (
+          <ul className="flex flex-col gap-0.5 text-xs text-amber-700">
+            {draftErrors.map((code) => (
+              <li key={code}>{t(`report.errors.${code}`)}</li>
+            ))}
+          </ul>
+        )}
+        {/* Distinct from draftErrors above: this covers the case where local validation
+            passes but the anonymous session never produced a usable user id (e.g. the
+            Turnstile/signInAnonymously bootstrap failed in a way that clears `loading`
+            without setting `error`). Without this, Submit would show enabled-looking
+            feedback state with no explanation for why handleSubmit silently no-ops. */}
+        {!sessionLoading && !userId && (
+          <p className="text-sm text-red-600">{sessionError ?? errorCodeToMessage('AUTH_REQUIRED')}</p>
+        )}
+        {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+        <button
+          type="button"
+          onClick={() => {
+            // Once collected, a contact isn't re-asked on retry (e.g. after a failed
+            // submit) — only a fresh page load clears it.
+            if (contact) {
+              handleSubmit(contact);
+            } else {
+              setShowContactDialog(true);
+            }
+          }}
+          disabled={draftErrors.length > 0 || submitting || sessionLoading || !userId}
+          className="rounded-lg bg-red-600 py-3 text-center font-medium text-white disabled:opacity-50"
+        >
+          {submitting ? t('report.submitting') : t('report.submit')}
+        </button>
+      </div>
       {showContactDialog && (
         <ReporterContactDialog
           onConfirm={(reporterContact) => {
