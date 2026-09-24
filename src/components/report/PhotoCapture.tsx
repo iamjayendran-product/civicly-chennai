@@ -72,11 +72,11 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
           <div key={photo.previewUrl} className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element -- ephemeral local
                 object URL preview; next/image doesn't apply here. */}
-            <img src={photo.previewUrl} alt="" className="h-20 w-20 rounded-lg object-cover" />
+            <img src={photo.previewUrl} alt="" className="h-20 w-20 rounded-xl object-cover" />
             <button
               type="button"
               onClick={() => removeAt(index)}
-              className="absolute -right-1 -top-1 rounded-full bg-gray-900 text-xs text-white"
+              className="absolute -right-1 -top-1 rounded-full bg-black/70 text-xs text-white"
               aria-label={t('report.photos.remove')}
             >
               ✕
@@ -87,14 +87,14 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="h-20 w-20 rounded-lg border-2 border-dashed border-gray-300 text-xs text-gray-500"
+            className="h-20 w-20 rounded-xl border-2 border-dashed border-line text-xs text-muted"
           >
             {t('report.photos.add')}
           </button>
         )}
       </div>
-      <p className="mt-1 text-xs text-gray-500">{t('report.photos.count', { count: photos.length })}</p>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      <p className="mt-1 text-xs text-muted">{t('report.photos.count', { count: photos.length })}</p>
+      {error && <p className="mt-1 text-xs text-primary">{error}</p>}
       <input
         ref={inputRef}
         type="file"

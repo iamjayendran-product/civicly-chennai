@@ -24,8 +24,8 @@ export function CategoryPicker({ category, subtype, onChangeCategory, onChangeSu
             key={value}
             type="button"
             onClick={() => onChangeCategory(value)}
-            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
-              category === value ? 'border-red-600 bg-red-50 font-medium' : 'border-gray-300'
+            className={`flex-1 rounded-xl border px-3 py-2 text-sm transition-colors ${
+              category === value ? 'border-primary bg-primary/10 font-medium text-primary' : 'border-line'
             }`}
           >
             {t(`report.category.${value}`)}
@@ -36,7 +36,7 @@ export function CategoryPicker({ category, subtype, onChangeCategory, onChangeSu
         <select
           value={subtype ?? ''}
           onChange={(event) => onChangeSubtype(event.target.value as ReportSubtype)}
-          className="rounded-lg border border-gray-300 p-2 text-sm"
+          className="rounded-xl border border-line bg-surface p-2 text-sm"
         >
           <option value="" disabled>
             {t('report.category.other')}

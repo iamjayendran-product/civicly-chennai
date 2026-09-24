@@ -28,6 +28,9 @@ if (typeof window !== 'undefined') {
   maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
 }
 
+// MapLibre paint properties take literal color values, not CSS custom properties, so
+// these can't reference globals.css's tokens directly — kept in sync by hand with
+// --brand-primary (#ff3b30) and --muted (#8e8e93).
 const SOURCE_ID = 'reports';
 const CLUSTER_LAYER_ID = 'reports-clusters';
 const CLUSTER_COUNT_LAYER_ID = 'reports-cluster-count';
@@ -85,7 +88,7 @@ export function MapView() {
         source: SOURCE_ID,
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#dc2626',
+          'circle-color': '#ff3b30',
           'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 26],
         },
       });
@@ -111,7 +114,7 @@ export function MapView() {
         source: SOURCE_ID,
         filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-color': ['match', ['get', 'status'], 'fixed', '#9ca3af', '#dc2626'],
+          'circle-color': ['match', ['get', 'status'], 'fixed', '#8e8e93', '#ff3b30'],
           'circle-radius': 8,
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff',
@@ -156,7 +159,7 @@ export function MapView() {
   return (
     <div className="relative h-dvh w-full">
       <div ref={containerRef} className="h-full w-full" />
-      <div className="absolute top-0 w-full bg-white/90">
+      <div className="absolute top-0 w-full bg-surface/90">
         <div className="p-2">
           <LocationSearch onSelect={(place) => mapRef.current?.flyTo({ center: [place.lng, place.lat], zoom: 15 })} />
         </div>
@@ -168,7 +171,7 @@ export function MapView() {
         />
       </div>
       {status === 'paused' && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 rounded-full bg-gray-900/80 px-3 py-1 text-xs text-white">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 rounded-full bg-black/75 px-3 py-1 text-xs text-white">
           {t('map.status.paused')}
         </div>
       )}
@@ -176,7 +179,7 @@ export function MapView() {
       <Link
         href="/report/new"
         aria-label={t('map.reportButton')}
-        className="absolute bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-3xl font-semibold text-white shadow-lg"
+        className="absolute bottom-6 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-3xl font-semibold text-white shadow-lg"
       >
         +
       </Link>

@@ -63,16 +63,16 @@ export function LocationSearch({ onSelect, className }: LocationSearchProps) {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={t('map.search.placeholder')}
-        className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm shadow-sm"
+        className="w-full rounded-xl border border-line bg-surface p-2 text-sm shadow-sm"
       />
       {results.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white text-sm shadow-lg">
+        <ul className="absolute z-10 mt-1 w-full rounded-xl border border-line bg-surface text-sm shadow-lg">
           {results.map((result) => (
             <li key={`${result.lng},${result.lat}`}>
               <button
                 type="button"
                 onClick={() => handleSelect(result)}
-                className="block w-full truncate px-3 py-2 text-left hover:bg-gray-50"
+                className="block w-full truncate px-3 py-2 text-left hover:bg-surface-muted"
               >
                 {result.label}
               </button>

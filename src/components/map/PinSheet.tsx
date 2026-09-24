@@ -13,18 +13,18 @@ export function PinSheet({ report, onClose }: PinSheetProps) {
   const subtypeLabel = report.subtype ? t(`report.subtype.${report.subtype}`) : null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-10 rounded-t-2xl bg-white p-4 shadow-lg">
+    <div className="fixed inset-x-0 bottom-0 z-10 rounded-t-2xl bg-surface p-4 shadow-xl">
       <button
         type="button"
         onClick={onClose}
         aria-label={t('pinSheet.close')}
-        className="mb-2 text-sm text-gray-500"
+        className="mb-2 text-sm text-muted"
       >
         ✕
       </button>
       <h2 className="text-lg font-semibold">{subtypeLabel ?? categoryLabel}</h2>
-      {report.note && <p className="mt-1 text-sm text-gray-700">{report.note}</p>}
-      <p className="mt-2 text-xs text-gray-500">
+      {report.note && <p className="mt-1 text-sm text-foreground">{report.note}</p>}
+      <p className="mt-2 text-xs text-muted">
         {t(report.status === 'fixed' ? 'report.status.fixed' : 'report.status.open')}
         {' · '}
         {t('pinSheet.upvotes', { count: report.upvoteCount })}

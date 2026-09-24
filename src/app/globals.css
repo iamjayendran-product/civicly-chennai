@@ -2,25 +2,54 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1c1c1e;
+
+  /* Apple-style semantic tokens: `primary` keeps this app's existing red as the main
+     action/alert color (fitting for a road-hazard app), refined to Apple's own system
+     red rather than Tailwind's red-600; `secondary` is Apple's system blue, used for
+     lower-emphasis actions/links so primary vs. secondary actually reads as a
+     hierarchy. `surface`/`surface-muted`/`line`/`muted` are Apple's system gray scale,
+     replacing the ad-hoc gray-50/200/300/500 utilities used throughout. */
+  --brand-primary: #ff3b30;
+  --brand-secondary: #007aff;
+  --brand-warning: #ff9500;
+  --surface: #ffffff;
+  --surface-muted: #f2f2f7;
+  --line: #d1d1d6;
+  --muted: #8e8e93;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--brand-primary);
+  --color-secondary: var(--brand-secondary);
+  --color-warning: var(--brand-warning);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #000000;
+    --foreground: #f2f2f7;
+    --brand-primary: #ff453a;
+    --brand-secondary: #0a84ff;
+    --brand-warning: #ff9f0a;
+    --surface: #1c1c1e;
+    --surface-muted: #2c2c2e;
+    --line: #38383a;
+    --muted: #98989d;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }

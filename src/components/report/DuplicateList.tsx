@@ -37,17 +37,17 @@ export function DuplicateList({ lng, lat, category, onContinue }: DuplicateListP
   if (candidates.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-gray-200 p-3">
+    <div className="rounded-xl border border-line bg-surface p-3">
       <h3 className="text-sm font-medium">{t('report.duplicates.title')}</h3>
       <ul className="mt-2 flex flex-col gap-2">
         {candidates.map((candidate) => (
           <li key={candidate.id} className="flex items-center justify-between text-sm">
             <span>{t('pinSheet.upvotes', { count: candidate.upvote_count })}</span>
-            <span className="text-xs text-gray-500">{t('report.duplicates.signInToConfirm')}</span>
+            <span className="text-xs text-muted">{t('report.duplicates.signInToConfirm')}</span>
           </li>
         ))}
       </ul>
-      <button type="button" onClick={onContinue} className="mt-2 text-sm text-red-600">
+      <button type="button" onClick={onContinue} className="mt-2 text-sm font-medium text-secondary">
         {t('report.duplicates.continueAnyway')}
       </button>
     </div>

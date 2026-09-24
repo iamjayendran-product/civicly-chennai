@@ -29,11 +29,11 @@ export function ReporterContactDialog({ onConfirm, onCancel }: ReporterContactDi
       aria-modal="true"
       aria-labelledby="reporter-contact-title"
     >
-      <div className="w-full max-w-sm rounded-t-2xl bg-white p-4 sm:rounded-2xl">
+      <div className="w-full max-w-sm rounded-t-2xl bg-surface p-4 shadow-xl sm:rounded-2xl">
         <h2 id="reporter-contact-title" className="text-base font-medium">
           {t('report.contact.title')}
         </h2>
-        <p className="mt-1 text-xs text-gray-500">{t('report.contact.description')}</p>
+        <p className="mt-1 text-xs text-muted">{t('report.contact.description')}</p>
         <div className="mt-4 flex flex-col gap-3">
           <div>
             <input
@@ -41,10 +41,10 @@ export function ReporterContactDialog({ onConfirm, onCancel }: ReporterContactDi
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={t('report.contact.namePlaceholder')}
-              className="w-full rounded-lg border border-gray-300 p-2 text-sm"
+              className="w-full rounded-xl border border-line p-2 text-sm"
             />
             {touched && errors.includes('NAME_REQUIRED') && (
-              <p className="mt-1 text-xs text-red-600">{t('report.contact.nameRequired')}</p>
+              <p className="mt-1 text-xs text-primary">{t('report.contact.nameRequired')}</p>
             )}
           </div>
           <div>
@@ -53,10 +53,10 @@ export function ReporterContactDialog({ onConfirm, onCancel }: ReporterContactDi
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               placeholder={t('report.contact.phonePlaceholder')}
-              className="w-full rounded-lg border border-gray-300 p-2 text-sm"
+              className="w-full rounded-xl border border-line p-2 text-sm"
             />
             {touched && errors.includes('PHONE_INVALID') && (
-              <p className="mt-1 text-xs text-red-600">{t('report.contact.phoneInvalid')}</p>
+              <p className="mt-1 text-xs text-primary">{t('report.contact.phoneInvalid')}</p>
             )}
           </div>
         </div>
@@ -64,14 +64,14 @@ export function ReporterContactDialog({ onConfirm, onCancel }: ReporterContactDi
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-medium"
+            className="flex-1 rounded-xl border border-line py-2 text-sm font-medium"
           >
             {t('report.contact.cancel')}
           </button>
           <button
             type="button"
             onClick={handleContinue}
-            className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-medium text-white"
+            className="flex-1 rounded-xl bg-primary py-2 text-sm font-medium text-white"
           >
             {t('report.contact.continue')}
           </button>

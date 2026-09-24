@@ -36,7 +36,9 @@ function Chip({ active, onClick, label }: { active: boolean; onClick: () => void
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${active ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-800'}`}
+      className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+        active ? 'bg-primary text-white' : 'bg-surface-muted text-foreground'
+      }`}
     >
       {label}
     </button>

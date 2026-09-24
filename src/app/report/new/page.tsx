@@ -120,10 +120,10 @@ export default function NewReportPage() {
           onChange={(event) => setNote(event.target.value)}
           placeholder={t('report.note.placeholder')}
           maxLength={280}
-          className="rounded-lg border border-gray-300 p-2 text-sm"
+          className="rounded-xl border border-line p-2 text-sm"
         />
         {draftErrors.length > 0 && (
-          <ul className="flex flex-col gap-0.5 text-xs text-amber-700">
+          <ul className="flex flex-col gap-0.5 text-xs text-warning">
             {draftErrors.map((code) => (
               <li key={code}>{t(`report.errors.${code}`)}</li>
             ))}
@@ -135,9 +135,9 @@ export default function NewReportPage() {
             without setting `error`). Without this, Submit would show enabled-looking
             feedback state with no explanation for why handleSubmit silently no-ops. */}
         {!sessionLoading && !userId && (
-          <p className="text-sm text-red-600">{sessionError ?? errorCodeToMessage('AUTH_REQUIRED')}</p>
+          <p className="text-sm text-primary">{sessionError ?? errorCodeToMessage('AUTH_REQUIRED')}</p>
         )}
-        {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+        {errorMessage && <p className="text-sm text-primary">{errorMessage}</p>}
         <button
           type="button"
           onClick={() => {
@@ -150,7 +150,7 @@ export default function NewReportPage() {
             }
           }}
           disabled={draftErrors.length > 0 || submitting || sessionLoading || !userId}
-          className="rounded-lg bg-red-600 py-3 text-center font-medium text-white disabled:opacity-50"
+          className="rounded-xl bg-primary py-3 text-center font-medium text-white disabled:opacity-50"
         >
           {submitting ? t('report.submitting') : t('report.submit')}
         </button>
