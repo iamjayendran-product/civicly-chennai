@@ -212,6 +212,7 @@ export default function NewReportPage() {
                 lat={location.lat}
                 category={category}
                 onContinue={() => setConfirmedNotDuplicate(true)}
+                onConfirmed={(reportId) => setSubmittedReportId(reportId)}
               />
             )}
             <textarea

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import { t } from '@/lib/i18n';
+import { t, errorCodeToMessage } from '@/lib/i18n';
 import type { ReportCategory } from '@/lib/report/validation';
 
 interface Candidate {
@@ -16,10 +16,14 @@ export interface DuplicateListProps {
   lat: number;
   category: ReportCategory;
   onContinue: () => void;
+  /** Called once an existing report has been successfully confirmed as the same issue. */
+  onConfirmed: (reportId: string) => void;
 }
 
-export function DuplicateList({ lng, lat, category, onContinue }: DuplicateListProps) {
+export function DuplicateList({ lng, lat, category, onContinue, onConfirmed }: DuplicateListProps) {
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +55,24 @@ export function DuplicateList({ lng, lat, category, onContinue }: DuplicateListP
     };
   }, [lng, lat, category]);
 
+  async function handleConfirm(candidateId: string) {
+    setConfirmingId(candidateId);
+    setConfirmError(null);
+    try {
+      const { error } = await getBrowserClient().rpc('confirm_same_issue', { p_report_id: candidateId });
+      if (error) {
+        setConfirmError(errorCodeToMessage(error.message));
+        return;
+      }
+      onConfirmed(candidateId);
+    } catch (error) {
+      console.error('[confirm_same_issue] failed:', error);
+      setConfirmError(errorCodeToMessage('UNKNOWN'));
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
   if (candidates === null) return null;
   if (candidates.length === 0) return null;
 
@@ -61,10 +83,18 @@ export function DuplicateList({ lng, lat, category, onContinue }: DuplicateListP
         {candidates.map((candidate) => (
           <li key={candidate.id} className="flex items-center justify-between text-sm">
             <span>{t('pinSheet.upvotes', { count: candidate.upvote_count })}</span>
-            <span className="text-xs text-muted">{t('report.duplicates.signInToConfirm')}</span>
+            <button
+              type="button"
+              onClick={() => handleConfirm(candidate.id)}
+              disabled={confirmingId !== null}
+              className="text-xs font-medium text-secondary disabled:opacity-50"
+            >
+              {confirmingId === candidate.id ? t('report.duplicates.confirming') : t('report.duplicates.sameIssue')}
+            </button>
           </li>
         ))}
       </ul>
+      {confirmError && <p className="mt-2 text-xs text-primary">{confirmError}</p>}
       <button type="button" onClick={onContinue} className="mt-2 text-sm font-medium text-secondary">
         {t('report.duplicates.continueAnyway')}
       </button>

@@ -27,7 +27,7 @@
   "report.location.gpsDenied": "Location access was denied. Tap the map to place your pin.",
   "report.duplicates.title": "Already reported nearby",
   "report.duplicates.sameIssue": "Same issue",
-  "report.duplicates.signInToConfirm": "Sign in with Google to confirm this is the same issue",
+  "report.duplicates.confirming": "Confirming…",
   "report.duplicates.continueAnyway": "None of these — continue",
   "report.errors.SUBTYPE_REQUIRED": "Please choose a subtype for \"Other\".",
   "report.errors.SUBTYPE_NOT_ALLOWED": "Subtype only applies when the category is \"Other\".",

@@ -11,6 +11,7 @@ import { useReports, type ReportPin } from '@/lib/realtime/useReports';
 import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
+import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
 import { t } from '@/lib/i18n';
 import type { Database } from '@/lib/supabase/database.types';
 
@@ -43,7 +44,12 @@ function reportsToGeoJson(reports: ReportPin[]): GeoJSON.FeatureCollection {
     features: reports.map((report) => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [report.lng, report.lat] },
-      properties: { id: report.id, status: report.status },
+      properties: {
+        id: report.id,
+        status: report.status,
+        iconId: reportIconId(report.category, report.status),
+        upvoteCount: report.upvoteCount,
+      },
     })),
   };
 }
@@ -98,6 +104,7 @@ export function MapView() {
 
     map.on('load', () => {
       updateBboxFromMap();
+      registerReportIcons(map);
       map.addSource(SOURCE_ID, {
         type: 'geojson',
         data: reportsToGeoJson(reportsRef.current),
@@ -132,14 +139,30 @@ export function MapView() {
       });
       map.addLayer({
         id: UNCLUSTERED_LAYER_ID,
-        type: 'circle',
+        type: 'symbol',
         source: SOURCE_ID,
         filter: ['!', ['has', 'point_count']],
+        layout: {
+          'icon-image': ['get', 'iconId'],
+          'icon-size': 0.5,
+          'icon-allow-overlap': true,
+          // "+X" badge, shown only once someone else has confirmed the same issue
+          // (upvoteCount is 0 until confirm_same_issue is called at least once).
+          'text-field': ['case', ['>', ['get', 'upvoteCount'], 0], ['concat', '+', ['to-string', ['get', 'upvoteCount']]], ''],
+          // 'Noto Sans Regular' is the only regular-weight font OpenFreeMap's liberty
+          // style actually serves — see the cluster-count layer above; anything else
+          // 404s on every load.
+          'text-font': ['Noto Sans Regular'],
+          'text-size': 11,
+          'text-offset': [1.1, -1.1],
+          'text-anchor': 'center',
+          'text-allow-overlap': true,
+          'text-ignore-placement': true,
+        },
         paint: {
-          'circle-color': ['match', ['get', 'status'], 'fixed', '#8e8e93', '#ff3b30'],
-          'circle-radius': 8,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff',
+          'text-color': '#ffffff',
+          'text-halo-color': '#000000',
+          'text-halo-width': 1.2,
         },
       });
 
