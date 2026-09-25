@@ -5,10 +5,12 @@ import { t } from '@/lib/i18n';
 
 const signInAnonymously = vi.fn().mockResolvedValue({ data: { user: { id: 'anon-user-1' } }, error: null });
 const getSession = vi.fn().mockResolvedValue({ data: { session: null } });
+const getUser = vi.fn().mockResolvedValue({ data: { user: null }, error: { message: 'no session' } });
+const signOut = vi.fn().mockResolvedValue({ error: null });
 
 vi.mock('@/lib/supabase/browser', () => ({
   getBrowserClient: () => ({
-    auth: { signInAnonymously, getSession },
+    auth: { signInAnonymously, getSession, getUser, signOut },
   }),
 }));
 
@@ -45,6 +47,8 @@ describe('SessionProvider', () => {
   beforeEach(() => {
     signInAnonymously.mockClear();
     getSession.mockClear();
+    getUser.mockClear();
+    signOut.mockClear();
     delete window.turnstile;
   });
 
@@ -124,5 +128,40 @@ describe('SessionProvider', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(t('errors.AUTH_REQUIRED'));
     expect(screen.getByText('user:')).toBeInTheDocument();
     expect(signInAnonymously).not.toHaveBeenCalled();
+  });
+
+  it('reuses an existing session once getUser() confirms the server still honors it', async () => {
+    getSession.mockResolvedValueOnce({ data: { session: { user: { id: 'valid-user' } } } });
+    getUser.mockResolvedValueOnce({ data: { user: { id: 'valid-user' } }, error: null });
+
+    render(
+      <SessionProvider turnstileToken="test-token">
+        <Probe />
+      </SessionProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText('user:valid-user')).toBeInTheDocument());
+    expect(signInAnonymously).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it('discards a stale cached session and signs in fresh when getUser() rejects it', async () => {
+    // getSession() reads whatever is cached locally without confirming the server
+    // still honors it — a session left over from before the local database was reset
+    // (which wipes auth.refresh_tokens) can look valid here but get every subsequent
+    // API call rejected with 401. This is exactly that: getSession() still returns the
+    // old session, but getUser() (which re-validates against the server) rejects it.
+    getSession.mockResolvedValueOnce({ data: { session: { user: { id: 'stale-user' } } } });
+    getUser.mockResolvedValueOnce({ data: { user: null }, error: { message: 'invalid JWT' } });
+
+    render(
+      <SessionProvider turnstileToken="test-token">
+        <Probe />
+      </SessionProvider>
+    );
+
+    await waitFor(() => expect(screen.getByText('user:anon-user-1')).toBeInTheDocument());
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signInAnonymously).toHaveBeenCalledWith({ options: { captchaToken: 'test-token' } });
   });
 });

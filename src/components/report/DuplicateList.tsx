@@ -23,11 +23,29 @@ export function DuplicateList({ lng, lat, category, onContinue }: DuplicateListP
 
   useEffect(() => {
     let cancelled = false;
-    getBrowserClient()
-      .rpc('nearby_reports', { p_lng: lng, p_lat: lat, p_category: category })
-      .then(({ data }: { data: Candidate[] | null }) => {
-        if (!cancelled) setCandidates(data ?? []);
-      });
+    async function loadCandidates() {
+      try {
+        const { data, error } = await getBrowserClient().rpc('nearby_reports', {
+          p_lng: lng,
+          p_lat: lat,
+          p_category: category,
+        });
+        if (cancelled) return;
+        if (error) {
+          // Non-critical feature (duplicate detection): fail open rather than block
+          // reporting, but log it rather than silently treating "the request failed"
+          // the same as "no duplicates found".
+          console.error('[nearby_reports] failed:', error);
+        }
+        setCandidates((data as Candidate[] | null) ?? []);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[nearby_reports] failed:', error);
+          setCandidates([]);
+        }
+      }
+    }
+    loadCandidates();
     return () => {
       cancelled = true;
     };

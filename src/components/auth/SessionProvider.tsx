@@ -72,8 +72,19 @@ export function SessionProvider({
     const supabase = getBrowserClient();
     const { data: existing } = await supabase.auth.getSession();
     if (existing.session?.user.id) {
-      setState({ userId: existing.session.user.id, loading: false, error: null });
-      return;
+      // getSession() returns whatever is cached locally without confirming the server
+      // still honors it. A session left over from before the local database was reset
+      // (which wipes auth.refresh_tokens) can still look valid here, but every
+      // subsequent API call made with it gets rejected with 401 — which surfaced as a
+      // generic "Something went wrong" on report submission, since a 401's message
+      // doesn't match any of our typed error codes. getUser() re-validates against the
+      // server before we trust a cached session.
+      const { data: verified, error: verifyError } = await supabase.auth.getUser();
+      if (!verifyError && verified.user) {
+        setState({ userId: verified.user.id, loading: false, error: null });
+        return;
+      }
+      await supabase.auth.signOut();
     }
     const { data, error } = await supabase.auth.signInAnonymously({ options: { captchaToken } });
     setState({
