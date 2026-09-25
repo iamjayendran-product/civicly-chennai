@@ -222,6 +222,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_same_issue: { Args: { p_report_id: string }; Returns: undefined }
       create_report: {
         Args: {
           p_category: Database["public"]["Enums"]["report_category"]

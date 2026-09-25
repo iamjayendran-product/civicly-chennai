@@ -44,8 +44,11 @@ local Supabase, or point `.env.local` at a hosted Supabase dev project.
    `supabase/migrations/`. RLS denies direct inserts/updates on domain tables. Never
    re-implement or bypass these in Next.js API routes.
 2. **Everyone has a session.** The app silently signs in anonymously (with a Turnstile
-   token). Reporting works for anonymous users; +1, flag, confirm-fixed, comments and
-   push require a Google-linked (non-anonymous) user.
+   token). Reporting and confirming "same issue" (+1, via `confirm_same_issue`) both
+   work for anonymous users — no Google-linked account required (product decision,
+   2026-09-25; the original spec required one for +1, this simplifies it to match
+   `create_report`'s own bar). Flag, confirm-fixed, comments and push still require a
+   Google-linked (non-anonymous) user.
 3. **Realtime is the source of map updates.** The map loads via `reports_in_bbox` and
    then applies Realtime `INSERT`/`UPDATE` events on `reports`. No polling.
 4. **CMDA only.** Any location outside the CMDA polygon is rejected server-side

@@ -57,7 +57,7 @@ makes them impossible to skip, keeps them transactional, and costs nothing extra
 | View map / report pages | ✅ | ✅ |
 | Submit report | ✅ | ✅ |
 | "My reports" (this device) | ✅ | ✅ (all devices) |
-| +1 an existing report | ❌ (prompts One Tap) | ✅ |
+| +1 an existing report (`confirm_same_issue`) | ✅ | ✅ |
 | Flag as fake/spam | ❌ | ✅ |
 | Confirm "fixed" (with photo) | ❌ | ✅ |
 | Comment | ❌ | ✅ |
@@ -70,6 +70,11 @@ makes them impossible to skip, keeps them transactional, and costs nothing extra
   exists, the anonymous user's reports are re-parented to it by an RPC.
 - Identity uniqueness = Supabase user id, backed by a salted SHA-256 hash of the client
   IP for rate limiting (raw IPs are never stored).
+- **(Amended 2026-09-25)** +1 no longer requires a Google-linked account — it uses the
+  same anonymous-session bar as submitting a report, via `confirm_same_issue` (increments
+  the target report's `upvote_count`, rate-limited per user like `create_report`; no
+  per-user dedup table, so this is intentionally a lighter bar than a real "vote"). Flag,
+  confirm-fixed, comments and push are unaffected and still require Google sign-in.
 
 ## 4. Features
 
@@ -86,7 +91,8 @@ Single screen, bottom-sheet flow:
 3. **Location** (required): starts at device GPS; user can drag the pin. If GPS is denied,
    the map opens centred on Chennai and the user taps to place the pin.
 4. **Nearby duplicates**: once the pin settles, show open reports of the same category
-   within 25 m. Each has "Same issue — +1" (requires Google) or the user may continue.
+   within 25 m. Each has "Same issue — +1" (any session, anonymous included, per the
+   2026-09-25 amendment in §3) or the user may continue.
 5. **Note** (optional, ≤ 280 chars).
 6. **Submit** → upload photos to Storage → call `create_report` RPC.
 
