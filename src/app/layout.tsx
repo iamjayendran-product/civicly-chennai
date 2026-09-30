@@ -3,7 +3,8 @@ import { SessionProvider } from "@/components/auth/SessionProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Chennai Road Grievance",
+  title: "Civicly Chennai",
+  applicationName: "Civicly Chennai",
   description: "Report potholes and road issues in Chennai and see them live on the map.",
 };
 

@@ -1,4 +1,4 @@
-# Chennai Road Grievance
+# Civicly Chennai
 
 Mobile-first PWA where citizens report potholes and other road issues in the Chennai
 Metropolitan Area (CMDA); reports appear live on a public map for everyone.
