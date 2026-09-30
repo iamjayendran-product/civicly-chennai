@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as maplibregl from 'maplibre-gl';
-import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature } from 'maplibre-gl';
+import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CMDA_MAX_BOUNDS, boundsToBboxParams } from '@/lib/geo/cmda';
 import { useReports, type ReportPin } from '@/lib/realtime/useReports';
@@ -13,7 +13,6 @@ import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
 import { Legend } from './Legend';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
-import { MAP_COLORS } from '@/lib/map/colors';
 import { t } from '@/lib/i18n';
 import type { Database } from '@/lib/supabase/database.types';
 
@@ -33,9 +32,7 @@ if (typeof window !== 'undefined') {
 }
 
 const SOURCE_ID = 'reports';
-const CLUSTER_LAYER_ID = 'reports-clusters';
-const CLUSTER_COUNT_LAYER_ID = 'reports-cluster-count';
-const UNCLUSTERED_LAYER_ID = 'reports-unclustered';
+const REPORTS_LAYER_ID = 'reports-pins';
 
 function reportsToGeoJson(reports: ReportPin[]): GeoJSON.FeatureCollection {
   return {
@@ -109,40 +106,11 @@ export function MapView() {
       map.addSource(SOURCE_ID, {
         type: 'geojson',
         data: reportsToGeoJson(reportsRef.current),
-        cluster: true,
-        clusterRadius: 40,
       });
       map.addLayer({
-        id: CLUSTER_LAYER_ID,
-        type: 'circle',
-        source: SOURCE_ID,
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': MAP_COLORS.pothole,
-          'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 26],
-        },
-      });
-      map.addLayer({
-        id: CLUSTER_COUNT_LAYER_ID,
+        id: REPORTS_LAYER_ID,
         type: 'symbol',
         source: SOURCE_ID,
-        filter: ['has', 'point_count'],
-        // 'text-font' is explicit because MapLibre otherwise asks for its default
-        // stack, which OpenFreeMap's liberty style does not serve — a glyph 404 on
-        // every page load. 'Noto Sans Regular' is the only regular-weight font in
-        // liberty's own glyph set.
-        layout: {
-          'text-field': ['get', 'point_count_abbreviated'],
-          'text-font': ['Noto Sans Regular'],
-          'text-size': 12,
-        },
-        paint: { 'text-color': '#ffffff' },
-      });
-      map.addLayer({
-        id: UNCLUSTERED_LAYER_ID,
-        type: 'symbol',
-        source: SOURCE_ID,
-        filter: ['!', ['has', 'point_count']],
         layout: {
           'icon-image': ['get', 'iconId'],
           'icon-size': 0.5,
@@ -151,8 +119,7 @@ export function MapView() {
           // (upvoteCount is 0 until confirm_same_issue is called at least once).
           'text-field': ['case', ['>', ['get', 'upvoteCount'], 0], ['concat', '+', ['to-string', ['get', 'upvoteCount']]], ''],
           // 'Noto Sans Regular' is the only regular-weight font OpenFreeMap's liberty
-          // style actually serves — see the cluster-count layer above; anything else
-          // 404s on every load.
+          // style actually serves — anything else 404s on every load.
           'text-font': ['Noto Sans Regular'],
           'text-size': 11,
           'text-offset': [1.1, -1.1],
@@ -167,23 +134,11 @@ export function MapView() {
         },
       });
 
-      map.on('click', UNCLUSTERED_LAYER_ID, (event) => {
+      map.on('click', REPORTS_LAYER_ID, (event) => {
         const feature = event.features?.[0];
         const id = feature?.properties?.id as string | undefined;
         const report = id ? reportsRef.current.find((r) => r.id === id) : undefined;
         if (report) setSelectedReport(report);
-      });
-
-      map.on('click', CLUSTER_LAYER_ID, (event) => {
-        const feature = event.features?.[0] as MapGeoJSONFeature | undefined;
-        const clusterId = feature?.properties?.cluster_id as number | undefined;
-        const geometry = feature?.geometry;
-        if (clusterId === undefined || geometry?.type !== 'Point') return;
-        const source = map.getSource(SOURCE_ID) as GeoJSONSource;
-        source.getClusterExpansionZoom(clusterId).then((zoom) => {
-          const [lng, lat] = geometry.coordinates;
-          map.easeTo({ center: [lng, lat], zoom });
-        });
       });
     });
 

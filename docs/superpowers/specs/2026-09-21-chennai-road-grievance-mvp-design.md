@@ -110,7 +110,9 @@ Realtime event.
 
 - Full-screen MapLibre map, bounded to the CMDA extent.
 - Initial load: `reports_in_bbox(min_lng, min_lat, max_lng, max_lat)` for the viewport,
-  refetched (debounced) on pan/zoom; results clustered client-side.
+  refetched (debounced) on pan/zoom. Every report renders as its own pin, unclustered
+  (product decision, 2026-09-30; clustering collapsed nearby reports into a count
+  bubble, which hid individual reports the citizen-facing map should always surface).
 - Subscribes to Realtime `INSERT`/`UPDATE` on `public.reports`; hidden reports are
   removed, new ones added, status changes restyle the pin.
 - Pin style by status: **open** = red, **fixed** = grey. Filter chips per category and
