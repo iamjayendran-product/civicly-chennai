@@ -13,7 +13,7 @@ export function PinSheet({ report, onClose }: PinSheetProps) {
   const subtypeLabel = report.subtype ? t(`report.subtype.${report.subtype}`) : null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-10 rounded-t-2xl bg-surface p-4 shadow-xl">
+    <div className="fixed inset-x-0 bottom-0 z-10 rounded-t-2xl bg-surface p-4 shadow-lg">
       <button
         type="button"
         onClick={onClose}

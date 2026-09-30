@@ -6,12 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CMDA_CENTER, CMDA_MAX_BOUNDS, boundsToBboxParams } from '@/lib/geo/cmda';
+import { CMDA_MAX_BOUNDS, boundsToBboxParams } from '@/lib/geo/cmda';
 import { useReports, type ReportPin } from '@/lib/realtime/useReports';
 import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
+import { Legend } from './Legend';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
+import { MAP_COLORS } from '@/lib/map/colors';
 import { t } from '@/lib/i18n';
 import type { Database } from '@/lib/supabase/database.types';
 
@@ -30,9 +32,6 @@ if (typeof window !== 'undefined') {
   maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
 }
 
-// MapLibre paint properties take literal color values, not CSS custom properties, so
-// these can't reference globals.css's tokens directly — kept in sync by hand with
-// --brand-primary (#ff3b30) and --muted (#8e8e93).
 const SOURCE_ID = 'reports';
 const CLUSTER_LAYER_ID = 'reports-clusters';
 const CLUSTER_COUNT_LAYER_ID = 'reports-cluster-count';
@@ -88,15 +87,17 @@ export function MapView() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE_URL,
-      center: [CMDA_CENTER.lng, CMDA_CENTER.lat],
-      zoom: 12,
+      // Opens fitted to the whole CMDA extent rather than a fixed zoom level, so the
+      // initial view always shows exactly the area `maxBounds` clamps panning to.
+      bounds: CMDA_MAX_BOUNDS,
       maxBounds: CMDA_MAX_BOUNDS,
     });
     mapRef.current = map;
-    // Zoom +/- and a compass (click to reset bearing/pitch, or drag to rotate). Bottom-left
-    // avoids the top search/filter bar and the "Report a Grievance" button, both of which
-    // already occupy the top and bottom-right/bottom-center.
+    // Zoom +/- and a compass (click to reset bearing/pitch, or drag to rotate), plus
+    // "find my location". Bottom-left avoids the top search/filter bar and the "Report
+    // a Grievance" button, both of which already occupy the top and bottom-right/center.
     map.addControl(new maplibregl.NavigationControl(), 'bottom-left');
+    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'bottom-left');
 
     function updateBboxFromMap() {
       setBbox(boundsToBboxParams(map.getBounds()));
@@ -117,7 +118,7 @@ export function MapView() {
         source: SOURCE_ID,
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#ff3b30',
+          'circle-color': MAP_COLORS.pothole,
           'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 26],
         },
       });
@@ -202,9 +203,12 @@ export function MapView() {
   }, [visibleReports]);
 
   return (
-    <div className="relative h-dvh w-full">
+    // flex-1/min-h-0 (not h-dvh): this is a flex child of <body> alongside
+    // SessionProvider's optional Turnstile/error banners, so it needs to fill
+    // whatever space they leave rather than always claiming the full viewport.
+    <div className="relative min-h-0 w-full flex-1">
       <div ref={containerRef} className="h-full w-full" />
-      <div className="absolute top-0 w-full bg-surface/90 backdrop-blur-md">
+      <div className="absolute top-0 w-full bg-surface/80 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-2 p-2">
           <div className="min-w-0 flex-1">
             <Filters
@@ -217,10 +221,11 @@ export function MapView() {
           {/* The primary call-to-action on this page — kept in the header row (not
               bottom-fixed) so browser chrome (address bar, bookmarks/download bars)
               can never cover it; deliberately the boldest, only-labeled button here so
-              it's the obvious next step for a first-time visitor. */}
+              it's the obvious next step for a first-time visitor. Shadow is a plain
+              elevation shadow rather than a colored glow, to keep the header calm. */}
           <Link
             href="/report/new"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(255,59,48,0.45)] transition-transform hover:scale-105"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md transition-transform hover:scale-105"
           >
             <span aria-hidden="true" className="text-lg leading-none">
               +
@@ -241,6 +246,12 @@ export function MapView() {
           {t('map.status.paused')}
         </div>
       )}
+      {/* bottom-16, not bottom-4: MapLibre's own attribution control also lives in this
+          corner (bottom-right) and can grow taller than its collapsed button on first
+          load, before the user's first drag collapses it — this clears that. */}
+      <div className="absolute bottom-16 right-2 z-10">
+        <Legend />
+      </div>
       {selectedReport && <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />}
     </div>
   );

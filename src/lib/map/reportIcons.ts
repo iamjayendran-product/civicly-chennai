@@ -1,18 +1,17 @@
 import type { Database } from '@/lib/supabase/database.types';
+import { MAP_COLORS } from './colors';
 
 type Category = Database['public']['Enums']['report_category'];
 type Status = Database['public']['Enums']['report_status'];
 
-// Kept in sync by hand with globals.css's tokens (MapLibre paint/icon properties take
-// literal colors, not CSS custom properties): pothole = --brand-primary, waterlogging =
-// --brand-secondary, other = a mustard tone distinct from both. Fixed reports render in
-// a neutral gray regardless of category, so "resolved" reads at a glance.
+// Fixed reports render in a neutral gray regardless of category, so "resolved" reads
+// at a glance.
 const CATEGORY_COLORS: Record<Category, string> = {
-  pothole: '#ff3b30',
-  waterlogging: '#007aff',
-  other: '#d4a72c',
+  pothole: MAP_COLORS.pothole,
+  waterlogging: MAP_COLORS.waterlogging,
+  other: MAP_COLORS.other,
 };
-const FIXED_COLOR = '#8e8e93';
+const FIXED_COLOR = MAP_COLORS.fixed;
 
 const ICON_SIZE = 48;
 
