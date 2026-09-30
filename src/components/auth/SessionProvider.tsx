@@ -5,7 +5,11 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { getBrowserClient } from '@/lib/supabase/browser';
 import { t } from '@/lib/i18n';
 
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
+// Cloudflare's dummy "always passes" test sitekey, invisible variant — unlike
+// '1x00000000000000000000AA' (also always-passes but forces a visible "Verifying..."
+// banner), this renders no UI at all. Swap for a real sitekey before launch; until
+// then this keeps local/preview environments working without a Cloudflare account.
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000BB';
 
 /**
  * How long to wait for Turnstile's callback before telling the user the session
