@@ -49,7 +49,6 @@
   "map.status.live": "Live",
   "map.status.paused": "Live updates paused",
   "map.reportButton": "Report a Grievance",
-  "map.reportButtonShort": "Report",
   "map.search.placeholder": "Search for a place or address",
   "map.pin.reportedAgo": "Reported {{time}} ago",
   "map.legend.toggle": "Legend",

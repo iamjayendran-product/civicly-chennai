@@ -164,30 +164,13 @@ export function MapView() {
     <div className="relative min-h-0 w-full flex-1">
       <div ref={containerRef} className="h-full w-full" />
       <div className="absolute top-0 w-full bg-surface/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-2 p-2">
-          <div className="min-w-0 flex-1">
-            <Filters
-              selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
-              showFixed={showFixed}
-              onToggleShowFixed={setShowFixed}
-            />
-          </div>
-          {/* The primary call-to-action on this page — kept in the header row (not
-              bottom-fixed) so browser chrome (address bar, bookmarks/download bars)
-              can never cover it; deliberately the boldest, only-labeled button here so
-              it's the obvious next step for a first-time visitor. Shadow is a plain
-              elevation shadow rather than a colored glow, to keep the header calm. */}
-          <Link
-            href="/report/new"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-md transition-transform hover:scale-105"
-          >
-            <span aria-hidden="true" className="text-lg leading-none">
-              +
-            </span>
-            <span className="hidden sm:inline">{t('map.reportButton')}</span>
-            <span className="sm:hidden">{t('map.reportButtonShort')}</span>
-          </Link>
+        <div className="p-2">
+          <Filters
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            showFixed={showFixed}
+            onToggleShowFixed={setShowFixed}
+          />
         </div>
         <div className="px-2 pb-2">
           <LocationSearch
@@ -196,6 +179,23 @@ export function MapView() {
           />
         </div>
       </div>
+      {/* The primary call-to-action on this page: a floating "glass" pill, translucent
+          at rest so it reads as part of the map rather than blocking it, and turning
+          solid on tap for clear feedback. Floating at the bottom (not fixed to the
+          viewport) is safe from mobile browser chrome because this container is
+          already sized to the visible dvh area (see the flex-1/min-h-0 note above).
+          bottom-16, not bottom-4: same reason as the Legend's offset below — clears
+          MapLibre's attribution control, which can render full-width and taller than
+          its collapsed button before the user's first drag collapses it. */}
+      <Link
+        href="/report/new"
+        className="absolute bottom-16 left-1/2 z-10 flex w-max -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/40 bg-primary/25 px-5 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur-lg transition-colors active:border-white/60 active:bg-primary"
+      >
+        <span aria-hidden="true" className="text-lg leading-none">
+          +
+        </span>
+        <span>{t('map.reportButton')}</span>
+      </Link>
       {status === 'paused' && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 rounded-full bg-black/75 px-3 py-1 text-xs text-white">
           {t('map.status.paused')}
