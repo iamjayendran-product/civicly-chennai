@@ -54,7 +54,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-[transform,background-color,color] active:scale-95 ${
         active ? 'bg-primary text-white' : 'bg-surface-muted text-foreground'
       }`}
     >

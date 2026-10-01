@@ -56,5 +56,7 @@
   "report.status.fixed": "Fixed",
   "report.status.open": "Open",
   "pinSheet.upvotes": "{{count}} +1",
-  "pinSheet.close": "Close"
+  "pinSheet.close": "Close",
+  "splash.title": "Civicly Chennai",
+  "splash.cta": "I'm a responsible Chennaite"
 }

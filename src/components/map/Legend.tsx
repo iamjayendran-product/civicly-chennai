@@ -16,7 +16,7 @@ export function Legend() {
         type="button"
         onClick={() => setExpanded(true)}
         aria-label={t('map.legend.toggle')}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-surface/80 text-sm font-semibold text-muted shadow-md backdrop-blur-sm"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-surface/80 text-sm font-semibold text-muted shadow-md backdrop-blur-sm transition-transform active:scale-90"
       >
         i
       </button>
@@ -27,7 +27,12 @@ export function Legend() {
     <div className="w-40 rounded-xl bg-surface/90 p-3 text-xs shadow-md backdrop-blur-sm">
       <div className="mb-2 flex items-center justify-between">
         <p className="font-semibold text-foreground">{t('map.legend.title')}</p>
-        <button type="button" onClick={() => setExpanded(false)} aria-label={t('map.legend.toggle')} className="text-muted">
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          aria-label={t('map.legend.toggle')}
+          className="text-muted transition-transform active:scale-90"
+        >
           ✕
         </button>
       </div>

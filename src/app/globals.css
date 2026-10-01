@@ -1,22 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #1c1c1e;
-
-  /* Apple-style semantic tokens: `primary` keeps this app's existing red as the main
-     action/alert color (fitting for a road-hazard app), refined to Apple's own system
-     red rather than Tailwind's red-600; `secondary` is Apple's system blue, used for
-     lower-emphasis actions/links so primary vs. secondary actually reads as a
-     hierarchy. `surface`/`surface-muted`/`line`/`muted` are Apple's system gray scale,
-     replacing the ad-hoc gray-50/200/300/500 utilities used throughout. */
-  --brand-primary: #ff3b30;
-  --brand-secondary: #007aff;
-  --brand-warning: #ff9500;
-  --surface: #ffffff;
-  --surface-muted: #f2f2f7;
-  --line: #d1d1d6;
-  --muted: #8e8e93;
+  /* Dark-first (product decision, 2026-10-01): this is the app's actual default now,
+     not a `prefers-color-scheme` fallback — a near-black base is what makes the
+     glass/glow treatment elsewhere read as premium instead of a plain white map app.
+     Same brand hues as before, just their dark-mode values promoted to the default. */
+  --background: #0b0b0d;
+  --foreground: #f2f2f7;
+  --brand-primary: #ff453a;
+  --brand-secondary: #0a84ff;
+  --brand-warning: #ff9f0a;
+  --surface: #1c1c1e;
+  --surface-muted: #2c2c2e;
+  --line: #38383a;
+  --muted: #98989d;
 }
 
 @theme inline {
@@ -34,22 +31,78 @@
     Helvetica, Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #f2f2f7;
-    --brand-primary: #ff453a;
-    --brand-secondary: #0a84ff;
-    --brand-warning: #ff9f0a;
-    --surface: #1c1c1e;
-    --surface-muted: #2c2c2e;
-    --line: #38383a;
-    --muted: #98989d;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* MapLibre's own zoom/compass/geolocate controls are rendered outside React, so they
+   can't take Tailwind's `active:` variant — this gives them the same tap feedback as
+   every other button in the app (Filters, Legend, Report FAB) for a consistent feel. */
+.maplibregl-ctrl-group button {
+  transition: transform 120ms ease;
+}
+.maplibregl-ctrl-group button:active {
+  transform: scale(0.88);
+}
+
+/* The splash gate's ripple: grows from a small dot to well past the viewport's own
+   diagonal (200vmax guarantees that regardless of aspect ratio) and fades out, on an
+   endless loop. Animating width/height (not transform: scale) means the centering
+   translate below is always a fresh 50% of the *current* size, so it stays centered
+   through the whole growth instead of drifting. Three instances of .civicly-ripple,
+   staggered by animation-delay in EntryGate, give the "multiple rings" radar look. */
+@keyframes civicly-ripple {
+  0% {
+    width: 12px;
+    height: 12px;
+    opacity: 0.45;
+  }
+  100% {
+    width: 200vmax;
+    height: 200vmax;
+    opacity: 0;
+  }
+}
+.civicly-ripple {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  border-radius: 9999px;
+  background: var(--brand-primary);
+  animation: civicly-ripple 1.5s ease-out infinite;
+}
+
+/* A real heartbeat's rhythm: two quick beats ("lub-dub") then a rest, not one smooth
+   pulse — 0-30% is the lub-dub pair, 30-100% is the rest before the next cycle. */
+@keyframes civicly-heartbeat {
+  0%,
+  30%,
+  100% {
+    transform: scale(1);
+  }
+  12% {
+    transform: scale(1.18);
+  }
+  24% {
+    transform: scale(1.12);
+  }
+}
+.civicly-heartbeat {
+  animation: civicly-heartbeat 1.5s ease-in-out infinite;
+}
+
+/* The gate's backdrop: a near-black base with a few soft, irregularly-placed red/blue
+   blooms rather than a flat wash, so it reads as an organic gradient instead of a
+   single dimmer. Sits over GateBackgroundMap at full opacity itself — the map shows
+   through only where these gradients fade to transparent. */
+.civicly-gate-scrim {
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255, 69, 58, 0.12), transparent 42%),
+    radial-gradient(circle at 82% 18%, rgba(10, 132, 255, 0.1), transparent 38%),
+    radial-gradient(circle at 65% 78%, rgba(255, 69, 58, 0.09), transparent 48%),
+    radial-gradient(circle at 12% 82%, rgba(10, 132, 255, 0.08), transparent 44%),
+    rgba(0, 0, 0, 0.95);
 }

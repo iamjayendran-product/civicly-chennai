@@ -13,6 +13,7 @@ import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
 import { Legend } from './Legend';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
+import { configureMaplibreWorker } from '@/lib/map/setupWorker';
 import { t } from '@/lib/i18n';
 import type { Database } from '@/lib/supabase/database.types';
 
@@ -21,15 +22,7 @@ type Category = Database['public']['Enums']['report_category'];
 const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
 
-// maplibre-gl resolves its default worker script URL from `import.meta.url` inside its own
-// package, which Next's webpack dev bundler does not expose as a real http(s) URL — the library
-// silently falls back to an empty string and the worker never starts (verified: Worker is
-// constructed with url `""`, so zero tile requests ever fire). `public/maplibre-gl-worker.mjs`
-// is a checked-in copy of `node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs`; re-copy it
-// after any maplibre-gl version bump.
-if (typeof window !== 'undefined') {
-  maplibregl.setWorkerUrl('/maplibre-gl-worker.mjs');
-}
+configureMaplibreWorker();
 
 const SOURCE_ID = 'reports';
 const REPORTS_LAYER_ID = 'reports-pins';
@@ -207,7 +200,7 @@ export function MapView() {
       <div className="absolute bottom-16 right-2 z-10">
         <Legend />
       </div>
-      {selectedReport && <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />}
+      <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />
     </div>
   );
 }
