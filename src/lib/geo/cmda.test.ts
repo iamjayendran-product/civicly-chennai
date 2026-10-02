@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CMDA_BBOX, CMDA_CENTER, CMDA_MAX_BOUNDS, boundsToBboxParams } from './cmda';
+import { CMDA_BBOX, CMDA_CENTER, CMDA_MAX_BOUNDS, boundsToBboxParams, padBounds } from './cmda';
 
 describe('CMDA constants', () => {
   it('CMDA_CENTER sits inside CMDA_BBOX', () => {
@@ -31,5 +31,18 @@ describe('boundsToBboxParams', () => {
       maxLng: 80.3,
       maxLat: 13.1,
     });
+  });
+});
+
+describe('padBounds', () => {
+  it('grows the box by a fraction of its size on every side', () => {
+    expect(padBounds([[0, 0], [10, 20]], 0.5)).toEqual([[-5, -10], [15, 30]]);
+  });
+  it('keeps the CMDA box inside the padded one', () => {
+    const [[w, s], [e, n]] = padBounds(CMDA_MAX_BOUNDS, 0.4);
+    expect(w).toBeLessThan(CMDA_MAX_BOUNDS[0][0]);
+    expect(s).toBeLessThan(CMDA_MAX_BOUNDS[0][1]);
+    expect(e).toBeGreaterThan(CMDA_MAX_BOUNDS[1][0]);
+    expect(n).toBeGreaterThan(CMDA_MAX_BOUNDS[1][1]);
   });
 });

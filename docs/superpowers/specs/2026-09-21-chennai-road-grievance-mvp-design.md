@@ -113,7 +113,10 @@ that opens on a satellite globe over Asia and flies in through India and Tamil N
 Chennai, where the pin lands on the logo (light scrim so the map shows through); the live map at `/home` is the **Discovery page**. On mobile, `/report/new` is a 75% map / 25% form split (the divider is draggable)
 with a two-step form: (1) category, note, photo; (2) name and phone.
 
-- Full-screen MapLibre map, bounded to the CMDA extent.
+- Full-screen MapLibre map, bounded to the CMDA extent plus a margin (40%; 200% on short
+  landscape screens) so the camera can pull back far enough to frame every pin in a tilted
+  3D view. Reports are still only accepted inside the CMDA (server-side).
+- On first load the camera frames every pin for the device's screen, then the pins drop in.
 - Initial load: `reports_in_bbox(min_lng, min_lat, max_lng, max_lat)` for the viewport,
   refetched (debounced) on pan/zoom. Every report renders as its own pin, unclustered
   (product decision, 2026-09-30; clustering collapsed nearby reports into a count

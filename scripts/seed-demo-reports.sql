@@ -1,8 +1,11 @@
--- Demo data for the LOCAL dev database only: 30 potholes + 20 waterlogging reports at
--- random spots inside the CMDA boundary, so the map has something to show.
+-- Demo data: 30 potholes + 20 waterlogging reports at random spots inside the CMDA
+-- boundary, so the map has something to show.
 --
+-- Local dev database:
 --   PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
 --     -f scripts/seed-demo-reports.sql
+-- Hosted project: paste this file into the Supabase dashboard's SQL Editor. Only do that
+-- on purpose — it puts invented grievances on a public map.
 --
 -- Safe to re-run: it first removes any reports it created earlier (they all belong to
 -- one dedicated demo user), then inserts a fresh set. Remove everything it made with:
@@ -11,7 +14,7 @@
 --      where reporter_id = '00000000-0000-4000-8000-000000000d3e');
 --
 -- Writes directly as the postgres role (bypassing create_report's rate limits and photo
--- requirement), so never run this against a real/hosted project.
+-- requirement), so it needs the cmda_boundary table to be seeded first.
 
 begin;
 

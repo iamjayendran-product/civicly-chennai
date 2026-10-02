@@ -17,6 +17,24 @@ export const CMDA_MAX_BOUNDS: [[number, number], [number, number]] = [
   [CMDA_BBOX.maxLng, CMDA_BBOX.maxLat],
 ];
 
+/** The CMDA extent grown by `fraction` of its size on every side. A tilted (3D) view
+ * squeezes the far side of the map, so framing every pin on a phone needs the camera to
+ * pull back further than a tight clamp to the CMDA box allows. Pins and reports are still
+ * only ever inside the CMDA (enforced server-side); this only loosens how far the
+ * camera may wander. */
+export function padBounds(
+  bounds: [[number, number], [number, number]],
+  fraction: number
+): [[number, number], [number, number]] {
+  const [[west, south], [east, north]] = bounds;
+  const dx = (east - west) * fraction;
+  const dy = (north - south) * fraction;
+  return [
+    [west - dx, south - dy],
+    [east + dx, north + dy],
+  ];
+}
+
 export interface BoundsLike {
   getWest(): number;
   getSouth(): number;

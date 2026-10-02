@@ -32,20 +32,25 @@ export interface GateBackgroundMapProps {
   onSettled: () => void;
 }
 
+function paddingFor(focalY: number, height: number) {
+  // Camera padding moves the visual centre: with the centre at `focalY`, Chennai lands
+  // there instead of mid-screen.
+  return focalY * 2 <= height
+    ? { top: 0, bottom: height - focalY * 2, left: 0, right: 0 }
+    : { top: focalY * 2 - height, bottom: 0, left: 0, right: 0 };
+}
+
 export function GateBackgroundMap({ focalY, onSettled }: GateBackgroundMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const focalYRef = useRef(focalY);
 
   useEffect(() => {
     if (!containerRef.current) return;
     const chennai = CHENNAI.center;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Camera padding moves the visual centre: with the centre at `focalY`, Chennai
-    // lands there instead of mid-screen.
     const height = containerRef.current.clientHeight || window.innerHeight;
-    const padding =
-      focalY * 2 <= height
-        ? { top: 0, bottom: height - focalY * 2, left: 0, right: 0 }
-        : { top: focalY * 2 - height, bottom: 0, left: 0, right: 0 };
+    const padding = paddingFor(focalY, height);
     // Always the satellite view, as a globe: Earth from space, then a single fly-in.
     // This doesn't touch the citizen's saved map view (see appearance.ts).
     const satellite = getMapStyle('satellite').style as object;
@@ -57,6 +62,7 @@ export function GateBackgroundMap({ focalY, onSettled }: GateBackgroundMapProps)
       interactive: false,
       attributionControl: false,
     });
+    mapRef.current = map;
     map.jumpTo({ padding });
 
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -65,7 +71,10 @@ export function GateBackgroundMap({ focalY, onSettled }: GateBackgroundMapProps)
         onSettled();
         return;
       }
-      map.once('moveend', onSettled);
+      map.once('moveend', () => {
+        map.jumpTo({ padding: paddingFor(focalYRef.current, containerRef.current?.clientHeight || window.innerHeight) });
+        onSettled();
+      });
       timer = setTimeout(
         () => map.flyTo({ center: chennai, zoom: CHENNAI.zoom, padding, duration: FLY_DURATION_MS, curve: 1.5, essential: true }),
         INTRO_DELAY_MS
@@ -74,10 +83,20 @@ export function GateBackgroundMap({ focalY, onSettled }: GateBackgroundMapProps)
 
     return () => {
       clearTimeout(timer);
+      mapRef.current = null;
       map.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the map is created once.
   }, []);
+
+  // Re-frame when the screen changes size (address bar, rotation); mid-flight changes
+  // are picked up at the end of the flight instead.
+  useEffect(() => {
+    focalYRef.current = focalY;
+    const map = mapRef.current;
+    if (!map || map.isMoving()) return;
+    map.jumpTo({ padding: paddingFor(focalY, containerRef.current?.clientHeight || window.innerHeight) });
+  }, [focalY]);
 
   // Two nested divs, not one: MapLibre forces `position: relative` on whatever
   // container it's given (see .maplibregl-map in its own stylesheet), which silently

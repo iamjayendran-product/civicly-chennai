@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CMDA_MAX_BOUNDS, boundsToBboxParams } from '@/lib/geo/cmda';
+import { CMDA_MAX_BOUNDS, boundsToBboxParams, padBounds } from '@/lib/geo/cmda';
 import { useReports, type ReportPin } from '@/lib/realtime/useReports';
 import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
@@ -17,6 +17,7 @@ import { getMapStyle } from '@/lib/map/styles';
 import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
 import { addStandardControls } from '@/lib/map/standardControls';
+import { fitCameraToPins } from '@/lib/map/fitPins';
 import { DROP_DURATION_MS, dropDelayMs, dropState } from '@/lib/map/dropAnimation';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
 import { configureMaplibreWorker } from '@/lib/map/setupWorker';
@@ -27,6 +28,9 @@ type Category = Database['public']['Enums']['report_category'];
 
 configureMaplibreWorker();
 
+// Short screens (a landscape phone) have so little vertical room that the camera must
+// pull back much further to frame every pin, so they get a looser clamp.
+const clampMarginFor = (containerHeight: number) => (containerHeight < 500 ? 2.0 : 0.4);
 const SOURCE_ID = 'reports';
 const REPORTS_LAYER_ID = 'reports-pins';
 
@@ -61,6 +65,10 @@ export function MapView() {
   const mapRef = useRef<MapLibreMap | null>(null);
   const reportsRef = useRef<ReportPin[]>([]);
   const hasDroppedRef = useRef(false);
+  const headerRef = useRef<HTMLDivElement>(null);
+  // Set once the citizen pans/zooms/rotates themselves; after that we stop re-framing.
+  const userMovedRef = useRef(false);
+  const pinPointsRef = useRef<{ lng: number; lat: number }[]>([]);
   const dropRef = useRef<{ order: Map<string, number>; total: number; start: number | null; raf: number } | null>(null);
   const [bbox, setBbox] = useState<ReturnType<typeof boundsToBboxParams> | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -96,7 +104,9 @@ export function MapView() {
       // Opens fitted to the whole CMDA extent rather than a fixed zoom level, so the
       // initial view always shows exactly the area `maxBounds` clamps panning to.
       bounds: CMDA_MAX_BOUNDS,
-      maxBounds: CMDA_MAX_BOUNDS,
+      // A margin around the CMDA box (see padBounds) so the camera can pull back far
+      // enough to frame every pin even in a tilted 3D view on a phone.
+      maxBounds: padBounds(CMDA_MAX_BOUNDS, clampMarginFor(containerRef.current.clientHeight)),
     });
     mapRef.current = map;
     // Same controls as every other map in the app (see standardControls.ts).
@@ -161,6 +171,21 @@ export function MapView() {
 
     map.on('moveend', updateBboxFromMap);
 
+    // Once the citizen moves the map themselves, leave the camera alone. Their gestures
+    // carry an originalEvent; our own programmatic moves don't.
+    for (const type of ['dragstart', 'zoomstart', 'rotatestart', 'pitchstart'] as const) {
+      map.on(type, (event) => {
+        if ((event as { originalEvent?: unknown }).originalEvent) userMovedRef.current = true;
+      });
+    }
+    // Rotating the phone or resizing the window changes the visible area: re-frame the
+    // pins so they all stay on screen.
+    map.on('resize', () => {
+      map.setMaxBounds(padBounds(CMDA_MAX_BOUNDS, clampMarginFor(map.getContainer().clientHeight)));
+      if (userMovedRef.current || pinPointsRef.current.length === 0) return;
+      fitCameraToPins(map, pinPointsRef.current, headerRef.current?.offsetHeight ?? 0);
+    });
+
     return () => {
       if (dropRef.current) cancelAnimationFrame(dropRef.current.raf);
       map.remove();
@@ -177,6 +202,11 @@ export function MapView() {
 
     if (!hasDroppedRef.current && visibleReports.length > 0) {
       hasDroppedRef.current = true;
+      // Frame every pin for this device's screen before they start dropping, so the
+      // whole sequence is visible. (Skipped when arriving via a ?focus= deep link,
+      // which flies to one specific pin instead.)
+      pinPointsRef.current = visibleReports;
+      if (!focusReportId) fitCameraToPins(map, visibleReports, headerRef.current?.offsetHeight ?? 0);
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         const sorted = [...visibleReports].sort((a, b) => b.lat - a.lat);
         const total = sorted.length;
@@ -207,7 +237,7 @@ export function MapView() {
     // While the drop animation runs, its frame loop owns the source's data.
     if (dropRef.current || !map.getSource(SOURCE_ID)) return;
     (map.getSource(SOURCE_ID) as GeoJSONSource).setData(reportsToGeoJson(visibleReports));
-  }, [visibleReports]);
+  }, [visibleReports, focusReportId]);
 
   return (
     // flex-1/min-h-0 (not h-dvh): this is a flex child of <body> alongside
@@ -215,7 +245,7 @@ export function MapView() {
     // whatever space they leave rather than always claiming the full viewport.
     <div className="relative min-h-0 w-full flex-1">
       <div ref={containerRef} className="h-full w-full" />
-      <div className="absolute top-0 w-full bg-surface/80 backdrop-blur-sm">
+      <div ref={headerRef} className="absolute top-0 w-full bg-surface/80 backdrop-blur-sm">
         <div className="p-2">
           <Filters
             selectedCategory={selectedCategory}
