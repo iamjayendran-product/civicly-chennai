@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { t } from '@/lib/i18n';
-import { GateBackgroundMap, type ScreenPoint } from './GateBackgroundMap';
+import { GateBackgroundMap } from './GateBackgroundMap';
 import { reportPinDataUrl } from '@/lib/map/reportIcons';
 
 const FADE_MS = 400;
@@ -11,7 +11,7 @@ const RIPPLE_COUNT = 5;
 // Must match the `civicly-ripple` keyframe's animation-duration in globals.css —
 // spacing rings evenly across one full cycle is what makes the count/density tunable
 // from just these two numbers instead of hand-listing each delay.
-const RIPPLE_CYCLE_S = 1.5;
+const RIPPLE_CYCLE_S = 3;
 
 /** The entry page at `/`: a full-screen animated screen with its own decorative map
  * (not the live homepage). Stays up until the citizen taps through to `/home`, since
@@ -19,7 +19,23 @@ const RIPPLE_CYCLE_S = 1.5;
 export function EntryGate() {
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
-  const [pin, setPin] = useState<{ point: ScreenPoint; src: string } | null>(null);
+  const logoRef = useRef<HTMLDivElement>(null);
+  // Where the logo pin sits on screen. The map is only created once this is known, so
+  // it can be framed to put Chennai exactly there.
+  const [logo, setLogo] = useState<{ x: number; y: number; tipY: number } | null>(null);
+  const [pinSrc, setPinSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const rect = logoRef.current?.getBoundingClientRect();
+      if (rect) {
+        const y = rect.top + rect.height / 2;
+        // The 64px logo is centred in its box; its tip is ~26px below centre.
+        setLogo({ x: rect.left + rect.width / 2, y, tipY: y + 26 });
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
 
   function enter() {
     setLeaving(true);
@@ -33,7 +49,7 @@ export function EntryGate() {
         leaving ? 'opacity-0' : 'opacity-100'
       }`}
     >
-      <GateBackgroundMap onPinPlaced={(point) => setPin({ point, src: reportPinDataUrl('pothole', 'open') })} />
+      {logo && <GateBackgroundMap focalY={logo.tipY} onSettled={() => setPinSrc(reportPinDataUrl('pothole', 'open'))} />}
       {/* The map should only read as a faint hint, not a visible scene — most of what
           sits on top of it is this near-opaque, irregularly-gradiented scrim (see
           .civicly-gate-scrim in globals.css). */}
@@ -50,17 +66,18 @@ export function EntryGate() {
         />
       ))}
       {/* Chennai's pin lives here rather than inside the map so the scrim above doesn't
-          dim it. `bottom` is the pin's tip, which marks the spot. */}
-      {pin && (
-        <div className="pointer-events-none absolute z-[15]" style={{ left: pin.point.x, top: pin.point.y, translate: '-50% -100%' }}>
+          dim it. It drops onto exactly the same spot as the logo pin and stays behind it
+          (z-15 vs the logo's z-20), so the citizen sees a single pin. */}
+      {logo && pinSrc && (
+        <div className="pointer-events-none absolute z-[15]" style={{ left: logo.x, top: logo.y, translate: '-50% -50%' }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- generated data URL. */}
-          <img src={pin.src} alt="" width={52} height={52} className="civicly-pin-drop" />
+          <img src={pinSrc} alt="" width={64} height={64} className="civicly-pin-drop" />
         </div>
       )}
       <p className="absolute bottom-3 left-0 right-0 z-20 text-center text-[10px] text-muted">{t('splash.imageryCredit')}</p>
       <div className="relative z-20 flex h-full flex-col items-center justify-center gap-8">
         <div className="flex flex-col items-center gap-5">
-          <div className="relative flex h-36 w-36 items-center justify-center">
+          <div ref={logoRef} className="relative flex h-36 w-36 items-center justify-center">
             <span className="absolute inset-3 animate-pulse rounded-full bg-secondary/25 blur-md" />
             <svg
               viewBox="0 0 24 24"

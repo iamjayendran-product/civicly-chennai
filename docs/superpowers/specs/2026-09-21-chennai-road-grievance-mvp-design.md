@@ -109,8 +109,8 @@ Realtime event.
 ### 4.2 Live map
 
 Routes (product decision, 2026-10-02): `/` is the **Home page**, an animated entry screen
-that opens on a satellite globe and flies in to Chennai with a pin (scrim at 92% so the map
-shows through); the live map at `/home` is the **Discovery page**. On mobile, `/report/new` is a 75% map / 25% form split (the divider is draggable)
+that opens on a satellite globe over Asia and flies in through India and Tamil Nadu to
+Chennai, where the pin lands on the logo (light scrim so the map shows through); the live map at `/home` is the **Discovery page**. On mobile, `/report/new` is a 75% map / 25% form split (the divider is draggable)
 with a two-step form: (1) category, note, photo; (2) name and phone.
 
 - Full-screen MapLibre map, bounded to the CMDA extent.
@@ -122,8 +122,8 @@ with a two-step form: (1) category, note, photo; (2) name and phone.
   removed, new ones added, status changes restyle the pin.
 - Pin style by status: **open** = red, **fixed** = grey. Filter chips per category and
   "show fixed".
-- Basemap views (product decision, 2026-10-02): Light (default), Dark, Terrain and
-  Satellite plus a 3D (tilted, extruded buildings) toggle, from a layers button; the
+- Basemap views (product decision, 2026-10-02): Satellite + 3D (default), Light, Dark and
+  Terrain, plus a 3D (tilted, extruded buildings) toggle, from a layers button; the
   choice is remembered per device and shared, with the same zoom/compass/locate
   controls, by the Discovery map and the report form's map.
 - Pins are Google-style teardrops coloured by category (fixed = grey) with the category

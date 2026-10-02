@@ -72,7 +72,7 @@ body {
   translate: -50% -50%;
   border-radius: 9999px;
   background: var(--brand-primary);
-  animation: civicly-ripple 1.5s ease-out infinite;
+  animation: civicly-ripple 3s ease-out infinite;
 }
 
 /* A real heartbeat's rhythm: two quick beats ("lub-dub") then a rest, not one smooth

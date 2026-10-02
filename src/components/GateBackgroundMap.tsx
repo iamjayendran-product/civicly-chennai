@@ -10,10 +10,7 @@ import { getMapStyle } from '@/lib/map/styles';
 configureMaplibreWorker();
 
 const SPACE_VIEW = { center: [78.5, 18] as [number, number], zoom: 0.7 };
-const CHENNAI_ZOOM = 11;
-// Shifts the map's focal point up so Chennai (and its pin) lands above the logo and
-// title instead of directly behind them.
-const FOCAL_PADDING = { top: 0, bottom: 360, left: 0, right: 0 };
+const CHENNAI = { center: [CMDA_CENTER.lng, CMDA_CENTER.lat] as [number, number], zoom: 11 };
 const INTRO_DELAY_MS = 700;
 const FLY_DURATION_MS = 7000;
 
@@ -27,48 +24,50 @@ const FLY_DURATION_MS = 7000;
  * its own, so it ends up compared flat against the gate's darkening overlay rather than
  * contained within this map's subtree — a higher z-index on the overlay doesn't reliably
  * beat it. Simplest correct fix for a backdrop this obscured: don't render it here. */
-export interface ScreenPoint {
-  x: number;
-  y: number;
+export interface GateBackgroundMapProps {
+  /** Distance from the top of the screen, in px, where Chennai should end up — the tip
+   * of the logo pin, so the map's pin lands exactly on it. */
+  focalY: number;
+  /** Called once the camera has settled on Chennai (or straight away with reduced motion). */
+  onSettled: () => void;
 }
 
-export function GateBackgroundMap({ onPinPlaced }: { onPinPlaced: (point: ScreenPoint) => void }) {
+export function GateBackgroundMap({ focalY, onSettled }: GateBackgroundMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const chennai: [number, number] = [CMDA_CENTER.lng, CMDA_CENTER.lat];
+    const chennai = CHENNAI.center;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Always the satellite view, as a globe: Earth from space, then a fly-in to Chennai.
+    // Camera padding moves the visual centre: with the centre at `focalY`, Chennai
+    // lands there instead of mid-screen.
+    const height = containerRef.current.clientHeight || window.innerHeight;
+    const padding =
+      focalY * 2 <= height
+        ? { top: 0, bottom: height - focalY * 2, left: 0, right: 0 }
+        : { top: focalY * 2 - height, bottom: 0, left: 0, right: 0 };
+    // Always the satellite view, as a globe: Earth from space, then a single fly-in.
     // This doesn't touch the citizen's saved map view (see appearance.ts).
     const satellite = getMapStyle('satellite').style as object;
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: { ...satellite, projection: { type: 'globe' } } as maplibregl.StyleSpecification,
       center: reduceMotion ? chennai : SPACE_VIEW.center,
-      zoom: reduceMotion ? CHENNAI_ZOOM : SPACE_VIEW.zoom,
+      zoom: reduceMotion ? CHENNAI.zoom : SPACE_VIEW.zoom,
       interactive: false,
       attributionControl: false,
     });
-
-    // The pin itself is drawn by EntryGate, above its scrim, so it stays crisp; this
-    // only reports where Chennai ended up on screen once the camera has settled.
-    map.jumpTo({ padding: FOCAL_PADDING });
-
-    function dropPin() {
-      const point = map.project(chennai);
-      onPinPlaced({ x: point.x, y: point.y });
-    }
+    map.jumpTo({ padding });
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     map.once('load', () => {
       if (reduceMotion) {
-        dropPin();
+        onSettled();
         return;
       }
-      map.once('moveend', dropPin);
+      map.once('moveend', onSettled);
       timer = setTimeout(
-        () => map.flyTo({ center: chennai, zoom: CHENNAI_ZOOM, padding: FOCAL_PADDING, duration: FLY_DURATION_MS, curve: 1.5, essential: true }),
+        () => map.flyTo({ center: chennai, zoom: CHENNAI.zoom, padding, duration: FLY_DURATION_MS, curve: 1.5, essential: true }),
         INTRO_DELAY_MS
       );
     });
@@ -77,7 +76,7 @@ export function GateBackgroundMap({ onPinPlaced }: { onPinPlaced: (point: Screen
       clearTimeout(timer);
       map.remove();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- the map is created once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the map is created once.
   }, []);
 
   // Two nested divs, not one: MapLibre forces `position: relative` on whatever

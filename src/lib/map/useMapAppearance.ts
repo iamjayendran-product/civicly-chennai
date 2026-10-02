@@ -8,7 +8,7 @@ import { DEFAULT_MAP_STYLE_ID, getMapStyle, type MapStyleId } from './styles';
 /** Owns the basemap-view + 3D state for one map and applies changes to it. Pair it
  * with `loadAppearance()` when constructing the map so it opens in the saved view. */
 export function useMapAppearance(mapRef: RefObject<MapLibreMap | null>) {
-  const [appearance, setAppearance] = useState<MapAppearance>({ styleId: DEFAULT_MAP_STYLE_ID, is3d: false });
+  const [appearance, setAppearance] = useState<MapAppearance>({ styleId: DEFAULT_MAP_STYLE_ID, is3d: true });
 
   useEffect(() => {
     // Deferred a tick (same pattern as elsewhere in the app) to satisfy the rule

@@ -17,6 +17,7 @@ import { getMapStyle } from '@/lib/map/styles';
 import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
 import { addStandardControls } from '@/lib/map/standardControls';
+import { DROP_DURATION_MS, dropDelayMs, dropState } from '@/lib/map/dropAnimation';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
 import { configureMaplibreWorker } from '@/lib/map/setupWorker';
 import { t } from '@/lib/i18n';
@@ -29,7 +30,9 @@ configureMaplibreWorker();
 const SOURCE_ID = 'reports';
 const REPORTS_LAYER_ID = 'reports-pins';
 
-function reportsToGeoJson(reports: ReportPin[]): GeoJSON.FeatureCollection {
+type DropStates = Map<string, { offsetY: number; opacity: number }>;
+
+function reportsToGeoJson(reports: ReportPin[], drops?: DropStates): GeoJSON.FeatureCollection {
   return {
     type: 'FeatureCollection',
     features: reports.map((report) => ({
@@ -40,6 +43,10 @@ function reportsToGeoJson(reports: ReportPin[]): GeoJSON.FeatureCollection {
         status: report.status,
         iconId: reportIconId(report.category, report.status),
         upvoteCount: report.upvoteCount,
+        // Per-frame drop-in state (see dropAnimation.ts); resting values when not animating.
+        dropY: drops?.get(report.id)?.offsetY ?? 0,
+        dropOffset: [0, drops?.get(report.id)?.offsetY ?? 0],
+        dropOpacity: drops?.get(report.id)?.opacity ?? 1,
       },
     })),
   };
@@ -53,6 +60,8 @@ export function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const reportsRef = useRef<ReportPin[]>([]);
+  const hasDroppedRef = useRef(false);
+  const dropRef = useRef<{ order: Map<string, number>; total: number; start: number | null; raf: number } | null>(null);
   const [bbox, setBbox] = useState<ReturnType<typeof boundsToBboxParams> | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showFixed, setShowFixed] = useState(false);
@@ -116,6 +125,7 @@ export function MapView() {
           // The pin's tip (not its centre) marks the reported spot.
           'icon-anchor': 'bottom',
           'icon-allow-overlap': true,
+          'icon-offset': ['array', 'number', 2, ['get', 'dropOffset']],
           // "+X" badge, shown only once someone else has confirmed the same issue
           // (upvoteCount is 0 until confirm_same_issue is called at least once).
           'text-field': ['case', ['>', ['get', 'upvoteCount'], 0], ['concat', '+', ['to-string', ['get', 'upvoteCount']]], ''],
@@ -132,6 +142,9 @@ export function MapView() {
           'text-color': '#ffffff',
           'text-halo-color': '#000000',
           'text-halo-width': 1.2,
+          'icon-opacity': ['get', 'dropOpacity'],
+          // The "+N" badge doesn't fall with the pin, so it appears once the pin has landed.
+          'text-opacity': ['case', ['==', ['get', 'dropY'], 0], 1, 0],
         },
       });
     });
@@ -149,15 +162,50 @@ export function MapView() {
     map.on('moveend', updateBboxFromMap);
 
     return () => {
+      if (dropRef.current) cancelAnimationFrame(dropRef.current.raf);
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
+  // First load: pins drop in from the top of the map one by one (northernmost first, so
+  // they fall in reading order). After that, data updates just swap in instantly.
   useEffect(() => {
     reportsRef.current = visibleReports;
     const map = mapRef.current;
-    if (!map || !map.getSource(SOURCE_ID)) return;
+    if (!map) return;
+
+    if (!hasDroppedRef.current && visibleReports.length > 0) {
+      hasDroppedRef.current = true;
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const sorted = [...visibleReports].sort((a, b) => b.lat - a.lat);
+        const total = sorted.length;
+        const order = new Map(sorted.map((report, index) => [report.id, index]));
+        const endMs = dropDelayMs(total - 1, total) + DROP_DURATION_MS;
+        const drop: NonNullable<typeof dropRef.current> = { order, total, start: null, raf: 0 };
+        dropRef.current = drop;
+        const tick = (now: number) => {
+          const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined;
+          if (!source || !map.isStyleLoaded()) {
+            drop.raf = requestAnimationFrame(tick);
+            return;
+          }
+          drop.start ??= now;
+          const elapsed = now - drop.start;
+          const done = elapsed >= endMs;
+          const states: DropStates = new Map();
+          for (const [id, index] of drop.order) states.set(id, dropState(index, elapsed, drop.total));
+          source.setData(reportsToGeoJson(reportsRef.current, done ? undefined : states));
+          if (done) dropRef.current = null;
+          else drop.raf = requestAnimationFrame(tick);
+        };
+        drop.raf = requestAnimationFrame(tick);
+        return;
+      }
+    }
+
+    // While the drop animation runs, its frame loop owns the source's data.
+    if (dropRef.current || !map.getSource(SOURCE_ID)) return;
     (map.getSource(SOURCE_ID) as GeoJSONSource).setData(reportsToGeoJson(visibleReports));
   }, [visibleReports]);
 

@@ -49,7 +49,8 @@ export const MAP_STYLES: MapStyleOption[] = [
   },
 ];
 
-export const DEFAULT_MAP_STYLE_ID: MapStyleId = 'light';
+// Product decision (2026-10-02): maps open in satellite + 3D unless the citizen chose otherwise.
+export const DEFAULT_MAP_STYLE_ID: MapStyleId = 'satellite';
 
 export function getMapStyle(id: string | null | undefined): MapStyleOption {
   return MAP_STYLES.find((s) => s.id === id) ?? MAP_STYLES.find((s) => s.id === DEFAULT_MAP_STYLE_ID)!;

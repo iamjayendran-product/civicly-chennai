@@ -16,13 +16,15 @@ export interface MapAppearance {
 
 export function loadAppearance(): MapAppearance {
   try {
+    const saved3d = localStorage.getItem(THREE_D_KEY);
     return {
       styleId: getMapStyle(localStorage.getItem(STYLE_KEY)).id,
-      is3d: localStorage.getItem(THREE_D_KEY) === '1',
+      // Nothing saved yet means the default (3D on); a stored value must be exactly '1'.
+      is3d: saved3d === null ? true : saved3d === '1',
     };
   } catch {
     // Storage can be unavailable (private mode, SSR): fall back to the defaults.
-    return { styleId: DEFAULT_MAP_STYLE_ID, is3d: false };
+    return { styleId: DEFAULT_MAP_STYLE_ID, is3d: true };
   }
 }
 
