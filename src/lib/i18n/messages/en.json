@@ -70,6 +70,8 @@
   "pinSheet.upvotes": "{{count}} +1",
   "pinSheet.close": "Close",
   "splash.imageryCredit": "Imagery © Esri, Maxar, Earthstar Geographics",
+  "splash.taglineLine1": "YOUR VOICE.",
+  "splash.taglineLine2": "NAMMA CHENNAI",
   "splash.title": "Civicly Chennai",
   "splash.cta": "I'm a responsible Chennaite"
 }

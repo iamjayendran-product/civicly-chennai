@@ -93,6 +93,16 @@ export function EntryGate() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('splash.title')}</h1>
+          {/* Always rendered (never gated on later state) so the logo's measured position,
+              which the globe pin is aligned to, doesn't shift after mount. */}
+          <h2 className="-mt-2 flex flex-col items-center text-center text-4xl font-black uppercase leading-[1.05] tracking-tight">
+            <span className="civicly-tagline text-foreground" style={{ animationDelay: '0.3s' }}>
+              {t('splash.taglineLine1')}
+            </span>
+            <span className="civicly-tagline civicly-tagline-shine" style={{ animationDelay: '0.7s' }}>
+              {t('splash.taglineLine2')}
+            </span>
+          </h2>
         </div>
         <button
           type="button"

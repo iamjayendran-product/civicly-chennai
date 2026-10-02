@@ -164,3 +164,46 @@ body {
     animation: none;
   }
 }
+
+/* The Home page tagline ("YOUR VOICE. NAMMA CHENNAI"): each line rises in with a soft
+   blur-to-sharp, one after the other; the second line then carries a slow red-to-white
+   shimmer. Reduced-motion users get the static text. */
+@keyframes civicly-tagline-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+@keyframes civicly-tagline-shine {
+  to {
+    background-position: -200% 0;
+  }
+}
+.civicly-tagline {
+  display: block;
+  opacity: 0;
+  animation: civicly-tagline-in 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.civicly-tagline-shine {
+  background-image: linear-gradient(100deg, var(--brand-primary) 0%, #ffffff 25%, var(--brand-primary) 50%, var(--brand-primary) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation:
+    civicly-tagline-in 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards,
+    civicly-tagline-shine 3.6s linear 1.6s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .civicly-tagline,
+  .civicly-tagline-shine {
+    opacity: 1;
+    animation: none;
+  }
+}
