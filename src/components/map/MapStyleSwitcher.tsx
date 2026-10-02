@@ -7,10 +7,12 @@ import { MAP_STYLES, type MapStyleId } from '@/lib/map/styles';
 export interface MapStyleSwitcherProps {
   value: MapStyleId;
   onChange: (id: MapStyleId) => void;
+  is3d: boolean;
+  onToggle3d: (is3d: boolean) => void;
 }
 
 /** Floating "layers" button that opens a small menu of basemap views. */
-export function MapStyleSwitcher({ value, onChange }: MapStyleSwitcherProps) {
+export function MapStyleSwitcher({ value, onChange, is3d, onToggle3d }: MapStyleSwitcherProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -35,6 +37,19 @@ export function MapStyleSwitcher({ value, onChange }: MapStyleSwitcherProps) {
               {option.id === value && <span aria-hidden="true">✓</span>}
             </button>
           ))}
+          <div className="my-1 border-t border-line" />
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={is3d}
+            onClick={() => onToggle3d(!is3d)}
+            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${
+              is3d ? 'bg-primary/15 font-semibold text-primary' : 'text-foreground'
+            }`}
+          >
+            {t('map.style.view3d')}
+            {is3d && <span aria-hidden="true">✓</span>}
+          </button>
         </div>
       )}
       <button

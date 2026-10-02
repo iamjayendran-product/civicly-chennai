@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { t } from '@/lib/i18n';
-import { GateBackgroundMap } from './GateBackgroundMap';
+import { GateBackgroundMap, type ScreenPoint } from './GateBackgroundMap';
+import { reportPinDataUrl } from '@/lib/map/reportIcons';
 
 const FADE_MS = 400;
 const RIPPLE_COUNT = 5;
@@ -18,6 +19,7 @@ const RIPPLE_CYCLE_S = 1.5;
 export function EntryGate() {
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
+  const [pin, setPin] = useState<{ point: ScreenPoint; src: string } | null>(null);
 
   function enter() {
     setLeaving(true);
@@ -31,7 +33,7 @@ export function EntryGate() {
         leaving ? 'opacity-0' : 'opacity-100'
       }`}
     >
-      <GateBackgroundMap />
+      <GateBackgroundMap onPinPlaced={(point) => setPin({ point, src: reportPinDataUrl('pothole', 'open') })} />
       {/* The map should only read as a faint hint, not a visible scene — most of what
           sits on top of it is this near-opaque, irregularly-gradiented scrim (see
           .civicly-gate-scrim in globals.css). */}
@@ -47,6 +49,15 @@ export function EntryGate() {
           aria-hidden="true"
         />
       ))}
+      {/* Chennai's pin lives here rather than inside the map so the scrim above doesn't
+          dim it. `bottom` is the pin's tip, which marks the spot. */}
+      {pin && (
+        <div className="pointer-events-none absolute z-[15]" style={{ left: pin.point.x, top: pin.point.y, translate: '-50% -100%' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- generated data URL. */}
+          <img src={pin.src} alt="" width={52} height={52} className="civicly-pin-drop" />
+        </div>
+      )}
+      <p className="absolute bottom-3 left-0 right-0 z-20 text-center text-[10px] text-muted">{t('splash.imageryCredit')}</p>
       <div className="relative z-20 flex h-full flex-col items-center justify-center gap-8">
         <div className="flex flex-col items-center gap-5">
           <div className="relative flex h-36 w-36 items-center justify-center">

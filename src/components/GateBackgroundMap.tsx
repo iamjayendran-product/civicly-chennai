@@ -5,11 +5,17 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { CMDA_CENTER } from '@/lib/geo/cmda';
 import { configureMaplibreWorker } from '@/lib/map/setupWorker';
-
-const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
-const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
+import { getMapStyle } from '@/lib/map/styles';
 
 configureMaplibreWorker();
+
+const SPACE_VIEW = { center: [78.5, 18] as [number, number], zoom: 0.7 };
+const CHENNAI_ZOOM = 11;
+// Shifts the map's focal point up so Chennai (and its pin) lands above the logo and
+// title instead of directly behind them.
+const FOCAL_PADDING = { top: 0, bottom: 360, left: 0, right: 0 };
+const INTRO_DELAY_MS = 700;
+const FLY_DURATION_MS = 7000;
 
 /** Purely decorative backdrop for the entry gate — the real, interactive map with its
  * controls and data (and full attribution) lives in MapView, which doesn't mount until
@@ -21,20 +27,57 @@ configureMaplibreWorker();
  * its own, so it ends up compared flat against the gate's darkening overlay rather than
  * contained within this map's subtree — a higher z-index on the overlay doesn't reliably
  * beat it. Simplest correct fix for a backdrop this obscured: don't render it here. */
-export function GateBackgroundMap() {
+export interface ScreenPoint {
+  x: number;
+  y: number;
+}
+
+export function GateBackgroundMap({ onPinPlaced }: { onPinPlaced: (point: ScreenPoint) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const chennai: [number, number] = [CMDA_CENTER.lng, CMDA_CENTER.lat];
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Always the satellite view, as a globe: Earth from space, then a fly-in to Chennai.
+    // This doesn't touch the citizen's saved map view (see appearance.ts).
+    const satellite = getMapStyle('satellite').style as object;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE_URL,
-      center: [CMDA_CENTER.lng, CMDA_CENTER.lat],
-      zoom: 11,
+      style: { ...satellite, projection: { type: 'globe' } } as maplibregl.StyleSpecification,
+      center: reduceMotion ? chennai : SPACE_VIEW.center,
+      zoom: reduceMotion ? CHENNAI_ZOOM : SPACE_VIEW.zoom,
       interactive: false,
       attributionControl: false,
     });
-    return () => map.remove();
+
+    // The pin itself is drawn by EntryGate, above its scrim, so it stays crisp; this
+    // only reports where Chennai ended up on screen once the camera has settled.
+    map.jumpTo({ padding: FOCAL_PADDING });
+
+    function dropPin() {
+      const point = map.project(chennai);
+      onPinPlaced({ x: point.x, y: point.y });
+    }
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    map.once('load', () => {
+      if (reduceMotion) {
+        dropPin();
+        return;
+      }
+      map.once('moveend', dropPin);
+      timer = setTimeout(
+        () => map.flyTo({ center: chennai, zoom: CHENNAI_ZOOM, padding: FOCAL_PADDING, duration: FLY_DURATION_MS, curve: 1.5, essential: true }),
+        INTRO_DELAY_MS
+      );
+    });
+
+    return () => {
+      clearTimeout(timer);
+      map.remove();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the map is created once.
   }, []);
 
   // Two nested divs, not one: MapLibre forces `position: relative` on whatever

@@ -13,15 +13,16 @@ import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
 import { Legend } from './Legend';
 import { MapStyleSwitcher } from './MapStyleSwitcher';
-import { DEFAULT_MAP_STYLE_ID, getMapStyle, type MapStyleId } from '@/lib/map/styles';
+import { getMapStyle } from '@/lib/map/styles';
+import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
+import { useMapAppearance } from '@/lib/map/useMapAppearance';
+import { addStandardControls } from '@/lib/map/standardControls';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
 import { configureMaplibreWorker } from '@/lib/map/setupWorker';
 import { t } from '@/lib/i18n';
 import type { Database } from '@/lib/supabase/database.types';
 
 type Category = Database['public']['Enums']['report_category'];
-
-const STYLE_STORAGE_KEY = 'civicly-map-style';
 
 configureMaplibreWorker();
 
@@ -56,8 +57,6 @@ export function MapView() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showFixed, setShowFixed] = useState(false);
   const [selectedReport, setSelectedReport] = useState<ReportPin | null>(null);
-  const [mapStyleId, setMapStyleId] = useState<MapStyleId>(DEFAULT_MAP_STYLE_ID);
-  const mapStyleIdRef = useRef<MapStyleId>(DEFAULT_MAP_STYLE_ID);
 
   const { reports, status } = useReports(bbox, showFixed);
   const visibleReports = selectedCategory ? reports.filter((r) => r.category === selectedCategory) : reports;
@@ -75,42 +74,24 @@ export function MapView() {
     router.replace('/home', { scroll: false });
   }, [reports, focusReportId, router]);
 
-  function handleChangeStyle(id: MapStyleId) {
-    setMapStyleId(id);
-    mapStyleIdRef.current = id;
-    try {
-      localStorage.setItem(STYLE_STORAGE_KEY, id);
-    } catch {
-      // Storage can be unavailable (private mode); the choice just won't persist.
-    }
-    // diff: false forces a full rebuild so 'style.load' always fires and the report
-    // layer is re-added (a diffed update could silently drop it).
-    mapRef.current?.setStyle(getMapStyle(id).style, { diff: false });
-  }
+  const { appearance, changeStyle, toggle3d } = useMapAppearance(mapRef);
 
   useEffect(() => {
     if (!containerRef.current) return;
-    try {
-      const saved = getMapStyle(localStorage.getItem(STYLE_STORAGE_KEY)).id;
-      mapStyleIdRef.current = saved;
-      setTimeout(() => setMapStyleId(saved), 0);
-    } catch {
-      // Storage unavailable: keep the default view.
-    }
+    const saved = loadAppearance();
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: getMapStyle(mapStyleIdRef.current).style,
+      style: getMapStyle(saved.styleId).style,
+      pitch: saved.is3d ? PITCH_3D : 0,
+      bearing: saved.is3d ? BEARING_3D : 0,
       // Opens fitted to the whole CMDA extent rather than a fixed zoom level, so the
       // initial view always shows exactly the area `maxBounds` clamps panning to.
       bounds: CMDA_MAX_BOUNDS,
       maxBounds: CMDA_MAX_BOUNDS,
     });
     mapRef.current = map;
-    // Zoom +/- and a compass (click to reset bearing/pitch, or drag to rotate), plus
-    // "find my location". Bottom-left avoids the top search/filter bar and the "Report
-    // a Grievance" button, both of which already occupy the top and bottom-right/center.
-    map.addControl(new maplibregl.NavigationControl(), 'bottom-left');
-    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'bottom-left');
+    // Same controls as every other map in the app (see standardControls.ts).
+    addStandardControls(map);
 
     function updateBboxFromMap() {
       setBbox(boundsToBboxParams(map.getBounds()));
@@ -131,7 +112,9 @@ export function MapView() {
         source: SOURCE_ID,
         layout: {
           'icon-image': ['get', 'iconId'],
-          'icon-size': 0.5,
+          'icon-size': 1,
+          // The pin's tip (not its centre) marks the reported spot.
+          'icon-anchor': 'bottom',
           'icon-allow-overlap': true,
           // "+X" badge, shown only once someone else has confirmed the same issue
           // (upvoteCount is 0 until confirm_same_issue is called at least once).
@@ -140,7 +123,7 @@ export function MapView() {
           // style actually serves — anything else 404s on every load.
           'text-font': ['Noto Sans Regular'],
           'text-size': 11,
-          'text-offset': [1.1, -1.1],
+          'text-offset': [1.1, -3.1],
           'text-anchor': 'center',
           'text-allow-overlap': true,
           'text-ignore-placement': true,
@@ -224,7 +207,12 @@ export function MapView() {
           corner (bottom-right) and can grow taller than its collapsed button on first
           load, before the user's first drag collapses it — this clears that. */}
       <div className="absolute bottom-16 right-2 z-10 flex flex-col items-end gap-2">
-        <MapStyleSwitcher value={mapStyleId} onChange={handleChangeStyle} />
+        <MapStyleSwitcher
+          value={appearance.styleId}
+          onChange={changeStyle}
+          is3d={appearance.is3d}
+          onToggle3d={toggle3d}
+        />
         <Legend />
       </div>
       <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />

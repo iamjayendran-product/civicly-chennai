@@ -7,10 +7,12 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { CMDA_CENTER, CMDA_MAX_BOUNDS } from '@/lib/geo/cmda';
 import type { PlaceResult } from '@/lib/geo/placeSearch';
 import { LocationSearch } from '@/components/map/LocationSearch';
+import { MapStyleSwitcher } from '@/components/map/MapStyleSwitcher';
+import { getMapStyle } from '@/lib/map/styles';
+import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
+import { useMapAppearance } from '@/lib/map/useMapAppearance';
+import { addStandardControls } from '@/lib/map/standardControls';
 import { t } from '@/lib/i18n';
-
-const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
-const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
 
 // See src/components/map/MapView.tsx for why this is needed: maplibre-gl can't resolve
 // its default worker script URL under Next's dev bundler, so the worker (and therefore
@@ -28,19 +30,25 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
   const [gpsDenied, setGpsDenied] = useState(false);
+  const { appearance, changeStyle, toggle3d } = useMapAppearance(mapRef);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const saved = loadAppearance();
     const map: MapLibreMap = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE_URL,
+      style: getMapStyle(saved.styleId).style,
+      pitch: saved.is3d ? PITCH_3D : 0,
+      bearing: saved.is3d ? BEARING_3D : 0,
       center: [CMDA_CENTER.lng, CMDA_CENTER.lat],
       zoom: 12,
       maxBounds: CMDA_MAX_BOUNDS,
     });
     mapRef.current = map;
-    // Zoom +/- and a compass (click to reset bearing/pitch, or drag to rotate).
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    // Same controls as every other map in the app (see standardControls.ts); a fix from
+    // the locate button also moves the report pin.
+    const geolocate = addStandardControls(map);
+    geolocate.on('geolocate', (position) => setLocation(position.coords.longitude, position.coords.latitude));
 
     function setLocation(lng: number, lat: number) {
       markerRef.current?.setLngLat([lng, lat]);
@@ -85,13 +93,16 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
 
   return (
     <div className="relative flex h-full flex-col">
-      <div className="absolute z-10 m-3 w-[calc(100%-5rem)] max-w-72">
+      <div className="absolute z-10 m-3 w-[calc(100%-1.5rem)] max-w-72">
         <LocationSearch onSelect={handleSearchSelect} />
       </div>
       <div ref={containerRef} className="h-full w-full flex-1" />
-      <p className="absolute bottom-3 left-3 z-10 rounded-lg bg-surface/90 px-2 py-1 text-xs text-muted">
+      <p className="absolute left-3 top-16 z-10 rounded-lg bg-surface/90 px-2 py-1 text-xs text-muted">
         {gpsDenied ? t('report.location.gpsDenied') : t('report.location.dragHint')}
       </p>
+      <div className="absolute bottom-8 right-2 z-10">
+        <MapStyleSwitcher value={appearance.styleId} onChange={changeStyle} is3d={appearance.is3d} onToggle3d={toggle3d} />
+      </div>
     </div>
   );
 }
