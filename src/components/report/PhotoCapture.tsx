@@ -72,7 +72,7 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
           <div key={photo.previewUrl} className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element -- ephemeral local
                 object URL preview; next/image doesn't apply here. */}
-            <img src={photo.previewUrl} alt="" className="h-20 w-20 rounded-xl object-cover" />
+            <img src={photo.previewUrl} alt="" className="h-14 w-14 rounded-xl object-cover" />
             <button
               type="button"
               onClick={() => removeAt(index)}
@@ -87,19 +87,17 @@ export function PhotoCapture({ photos, onChange, max = 3 }: PhotoCaptureProps) {
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="h-20 w-20 rounded-xl border-2 border-dashed border-line text-xs text-muted"
+            className="h-14 min-w-14 rounded-xl border-2 border-dashed border-line px-2 text-xs text-muted"
           >
             {t('report.photos.add')}
           </button>
         )}
       </div>
-      <p className="mt-1 text-xs text-muted">{t('report.photos.count', { count: photos.length })}</p>
-      {error && <p className="mt-1 text-xs text-primary">{error}</p>}
+            {error && <p className="mt-1 text-xs text-primary">{error}</p>}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         className="hidden"
         onChange={(event) => {

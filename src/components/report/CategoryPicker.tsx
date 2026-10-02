@@ -17,14 +17,14 @@ export interface CategoryPickerProps {
 
 export function CategoryPicker({ category, subtype, onChangeCategory, onChangeSubtype }: CategoryPickerProps) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <div className="flex gap-2">
         {CATEGORIES.map((value) => (
           <button
             key={value}
             type="button"
             onClick={() => onChangeCategory(value)}
-            className={`flex-1 rounded-xl border px-3 py-2 text-sm transition-colors ${
+            className={`flex-1 rounded-xl border px-2 py-1.5 text-sm transition-colors ${
               category === value ? 'border-primary bg-primary/10 font-medium text-primary' : 'border-line'
             }`}
           >

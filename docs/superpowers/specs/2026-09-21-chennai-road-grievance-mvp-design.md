@@ -108,6 +108,10 @@ Realtime event.
 
 ### 4.2 Live map
 
+Routes (product decision, 2026-10-02): `/` is the animated entry gate; the live map is at
+`/home`. On mobile, `/report/new` is a 75% map / 25% form split (the divider is draggable)
+with a two-step form: (1) category, note, photo; (2) name and phone.
+
 - Full-screen MapLibre map, bounded to the CMDA extent.
 - Initial load: `reports_in_bbox(min_lng, min_lat, max_lng, max_lat)` for the viewport,
   refetched (debounced) on pan/zoom. Every report renders as its own pin, unclustered
@@ -117,6 +121,8 @@ Realtime event.
   removed, new ones added, status changes restyle the pin.
 - Pin style by status: **open** = red, **fixed** = grey. Filter chips per category and
   "show fixed".
+- Basemap views (product decision, 2026-10-02): Light (default), Dark, Terrain and
+  Satellite, switched from a layers button; the choice is remembered per device.
 - Tapping a pin opens a sheet with photos, category, age, +1 count, actions.
 
 ### 4.3 Report page `/r/[id]`
@@ -274,7 +280,8 @@ Supabase Vault.
 ```
 src/
   app/
-    page.tsx                 # live map (home)
+    page.tsx                 # animated entry gate (/)
+    home/page.tsx            # live map (home)
     report/new/page.tsx      # report flow
     r/[id]/page.tsx          # public report page (SSR + OG)
     me/page.tsx              # my reports

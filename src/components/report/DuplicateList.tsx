@@ -16,11 +16,13 @@ export interface DuplicateListProps {
   lat: number;
   category: ReportCategory;
   onContinue: () => void;
+  /** Called once the lookup finishes with nothing nearby, so a stepped flow can move on. */
+  onNoDuplicates?: () => void;
   /** Called once an existing report has been successfully confirmed as the same issue. */
   onConfirmed: (reportId: string) => void;
 }
 
-export function DuplicateList({ lng, lat, category, onContinue, onConfirmed }: DuplicateListProps) {
+export function DuplicateList({ lng, lat, category, onContinue, onNoDuplicates, onConfirmed }: DuplicateListProps) {
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -73,7 +75,12 @@ export function DuplicateList({ lng, lat, category, onContinue, onConfirmed }: D
     }
   }
 
-  if (candidates === null) return null;
+  const noneNearby = candidates !== null && candidates.length === 0;
+  useEffect(() => {
+    if (noneNearby) onNoDuplicates?.();
+  }, [noneNearby, onNoDuplicates]);
+
+  if (candidates === null) return <p className="text-xs text-muted">{t('report.duplicates.checking')}</p>;
   if (candidates.length === 0) return null;
 
   return (

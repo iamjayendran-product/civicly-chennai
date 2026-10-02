@@ -12,6 +12,8 @@ import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
 import { Legend } from './Legend';
+import { MapStyleSwitcher } from './MapStyleSwitcher';
+import { DEFAULT_MAP_STYLE_ID, getMapStyle, type MapStyleId } from '@/lib/map/styles';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
 import { configureMaplibreWorker } from '@/lib/map/setupWorker';
 import { t } from '@/lib/i18n';
@@ -19,8 +21,7 @@ import type { Database } from '@/lib/supabase/database.types';
 
 type Category = Database['public']['Enums']['report_category'];
 
-const DEFAULT_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
-const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE_URL || DEFAULT_MAP_STYLE_URL;
+const STYLE_STORAGE_KEY = 'civicly-map-style';
 
 configureMaplibreWorker();
 
@@ -55,6 +56,8 @@ export function MapView() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [showFixed, setShowFixed] = useState(false);
   const [selectedReport, setSelectedReport] = useState<ReportPin | null>(null);
+  const [mapStyleId, setMapStyleId] = useState<MapStyleId>(DEFAULT_MAP_STYLE_ID);
+  const mapStyleIdRef = useRef<MapStyleId>(DEFAULT_MAP_STYLE_ID);
 
   const { reports, status } = useReports(bbox, showFixed);
   const visibleReports = selectedCategory ? reports.filter((r) => r.category === selectedCategory) : reports;
@@ -69,14 +72,34 @@ export function MapView() {
     hasFocusedRef.current = true;
     mapRef.current.flyTo({ center: [report.lng, report.lat], zoom: 16 });
     setSelectedReport(report);
-    router.replace('/', { scroll: false });
+    router.replace('/home', { scroll: false });
   }, [reports, focusReportId, router]);
+
+  function handleChangeStyle(id: MapStyleId) {
+    setMapStyleId(id);
+    mapStyleIdRef.current = id;
+    try {
+      localStorage.setItem(STYLE_STORAGE_KEY, id);
+    } catch {
+      // Storage can be unavailable (private mode); the choice just won't persist.
+    }
+    // diff: false forces a full rebuild so 'style.load' always fires and the report
+    // layer is re-added (a diffed update could silently drop it).
+    mapRef.current?.setStyle(getMapStyle(id).style, { diff: false });
+  }
 
   useEffect(() => {
     if (!containerRef.current) return;
+    try {
+      const saved = getMapStyle(localStorage.getItem(STYLE_STORAGE_KEY)).id;
+      mapStyleIdRef.current = saved;
+      setTimeout(() => setMapStyleId(saved), 0);
+    } catch {
+      // Storage unavailable: keep the default view.
+    }
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLE_URL,
+      style: getMapStyle(mapStyleIdRef.current).style,
       // Opens fitted to the whole CMDA extent rather than a fixed zoom level, so the
       // initial view always shows exactly the area `maxBounds` clamps panning to.
       bounds: CMDA_MAX_BOUNDS,
@@ -93,8 +116,10 @@ export function MapView() {
       setBbox(boundsToBboxParams(map.getBounds()));
     }
 
-    map.on('load', () => {
-      updateBboxFromMap();
+    // 'style.load' (not 'load') fires for the first style and again after every
+    // setStyle(), which wipes images, sources and layers — so the report layer is
+    // re-added here each time the basemap changes.
+    map.on('style.load', () => {
       registerReportIcons(map);
       map.addSource(SOURCE_ID, {
         type: 'geojson',
@@ -126,7 +151,10 @@ export function MapView() {
           'text-halo-width': 1.2,
         },
       });
+    });
 
+    map.on('load', () => {
+      updateBboxFromMap();
       map.on('click', REPORTS_LAYER_ID, (event) => {
         const feature = event.features?.[0];
         const id = feature?.properties?.id as string | undefined;
@@ -172,19 +200,17 @@ export function MapView() {
           />
         </div>
       </div>
-      {/* The primary call-to-action on this page: a floating "glass" pill, translucent
-          at rest so it reads as part of the map rather than blocking it, and turning
-          solid on tap for clear feedback. Floating at the bottom (not fixed to the
-          viewport) is safe from mobile browser chrome because this container is
-          already sized to the visible dvh area (see the flex-1/min-h-0 note above).
-          bottom-16, not bottom-4: same reason as the Legend's offset below — clears
-          MapLibre's attribution control, which can render full-width and taller than
-          its collapsed button before the user's first drag collapses it. */}
+      {/* The primary call-to-action on this page: a solid, bold pill with a slow glow
+          pulse (see .civicly-cta in globals.css) so it's the first thing the eye lands
+          on. bottom-16, not bottom-4: clears MapLibre's attribution control, which can
+          render full-width and taller than its collapsed button before the user's
+          first drag collapses it. The container is already sized to the visible dvh
+          area (see the flex-1/min-h-0 note above), so mobile browser chrome is safe. */}
       <Link
         href="/report/new"
-        className="absolute bottom-16 left-1/2 z-10 flex w-max -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/40 bg-primary/25 px-5 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur-lg transition-colors active:border-white/60 active:bg-primary"
+        className="civicly-cta absolute bottom-16 left-1/2 z-10 flex w-max items-center gap-2 whitespace-nowrap rounded-full border-2 border-white/70 bg-primary px-7 py-4 text-base font-extrabold tracking-wide text-white"
       >
-        <span aria-hidden="true" className="text-lg leading-none">
+        <span aria-hidden="true" className="text-2xl font-black leading-none">
           +
         </span>
         <span>{t('map.reportButton')}</span>
@@ -197,7 +223,8 @@ export function MapView() {
       {/* bottom-16, not bottom-4: MapLibre's own attribution control also lives in this
           corner (bottom-right) and can grow taller than its collapsed button on first
           load, before the user's first drag collapses it — this clears that. */}
-      <div className="absolute bottom-16 right-2 z-10">
+      <div className="absolute bottom-16 right-2 z-10 flex flex-col items-end gap-2">
+        <MapStyleSwitcher value={mapStyleId} onChange={handleChangeStyle} />
         <Legend />
       </div>
       <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />

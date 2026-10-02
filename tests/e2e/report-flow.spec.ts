@@ -65,7 +65,7 @@ async function waitForStableScreenshot(
 }
 
 test("a report appears live on an open map without reload", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/home");
   await page.waitForSelector(".maplibregl-canvas");
   const canvas = page.locator(".maplibregl-canvas").first();
   const pinsBefore = await waitForStableScreenshot(canvas);

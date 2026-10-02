@@ -1,10 +1,5 @@
-import { Suspense } from 'react';
-import { MapView } from '@/components/map/MapView';
+import { EntryGate } from '@/components/EntryGate';
 
-export default function Home() {
-  return (
-    <Suspense>
-      <MapView />
-    </Suspense>
-  );
+export default function Entry() {
+  return <EntryGate />;
 }

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { t } from '@/lib/i18n';
 import { GateBackgroundMap } from './GateBackgroundMap';
 
-const SEEN_KEY = 'civicly-splash-seen';
 const FADE_MS = 400;
 const RIPPLE_COUNT = 5;
 // Must match the `civicly-ripple` keyframe's animation-duration in globals.css —
@@ -12,34 +12,23 @@ const RIPPLE_COUNT = 5;
 // from just these two numbers instead of hand-listing each delay.
 const RIPPLE_CYCLE_S = 1.5;
 
-type Phase = 'checking' | 'gate' | 'fading' | 'entered';
-
-/** Gates the real app (passed as `children`, which doesn't mount until this reaches
- * 'entered') behind a full-screen entry screen — its own decorative map, not the live
- * homepage, so none of the real app's controls ever show through it. Shown once per
- * tab session; stays up until the citizen taps through, since there's no separate
- * marketing landing page to carry that first impression. */
-export function EntryGate({ children }: { children: React.ReactNode }) {
-  const [phase, setPhase] = useState<Phase>('checking');
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPhase(sessionStorage.getItem(SEEN_KEY) ? 'entered' : 'gate');
-  }, []);
+/** The entry page at `/`: a full-screen animated screen with its own decorative map
+ * (not the live homepage). Stays up until the citizen taps through to `/home`, since
+ * there's no separate marketing landing page to carry that first impression. */
+export function EntryGate() {
+  const router = useRouter();
+  const [leaving, setLeaving] = useState(false);
 
   function enter() {
-    sessionStorage.setItem(SEEN_KEY, '1');
-    setPhase('fading');
-    setTimeout(() => setPhase('entered'), FADE_MS);
+    setLeaving(true);
+    router.prefetch('/home');
+    setTimeout(() => router.push('/home'), FADE_MS);
   }
-
-  if (phase === 'checking') return null;
-  if (phase === 'entered') return <>{children}</>;
 
   return (
     <div
       className={`fixed inset-0 z-50 overflow-hidden bg-black transition-opacity duration-[400ms] ${
-        phase === 'fading' ? 'opacity-0' : 'opacity-100'
+        leaving ? 'opacity-0' : 'opacity-100'
       }`}
     >
       <GateBackgroundMap />
