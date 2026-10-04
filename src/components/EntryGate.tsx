@@ -12,6 +12,14 @@ const RIPPLE_COUNT = 5;
 // spacing rings evenly across one full cycle is what makes the count/density tunable
 // from just these two numbers instead of hand-listing each delay.
 const RIPPLE_CYCLE_S = 3;
+// Once the globe has landed: line 1 fades in, then line 2 (each 0.8s, see
+// `civicly-tagline-in`), then the button. CTA_DELAY_MS = line 2's start + its duration.
+// All offsets start after the pin drop (`civicly-pin-drop`, 0.9s) so the text only
+// appears once the whole motion sequence has played out.
+const PIN_DROP_S = 0.9;
+const LINE1_DELAY_S = PIN_DROP_S + 0.3;
+const LINE2_DELAY_S = LINE1_DELAY_S + 0.9;
+const CTA_DELAY_MS = (LINE2_DELAY_S + 0.9) * 1000;
 
 /** The entry page at `/`: a full-screen animated screen with its own decorative map
  * (not the live homepage). Stays up until the citizen taps through to `/home`, since
@@ -28,6 +36,15 @@ export function EntryGate() {
   // construction and never needs coordinates.
   const [focalY, setFocalY] = useState<number | null>(null);
   const [pinSrc, setPinSrc] = useState<string | null>(null);
+  const [ctaVisible, setCtaVisible] = useState(false);
+  // The tagline and button stay hidden until the map has finished its fly-in.
+  const landed = pinSrc !== null;
+
+  useEffect(() => {
+    if (!landed) return;
+    const timer = setTimeout(() => setCtaVisible(true), CTA_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [landed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,10 +135,16 @@ export function EntryGate() {
           {/* Always rendered (never gated on later state) so the logo's measured position,
               which the globe pin is aligned to, doesn't shift after mount. */}
           <h2 className="-mt-2 flex flex-col items-center text-center text-4xl font-black [@media(max-height:620px)]:text-3xl uppercase leading-[1.05] tracking-tight">
-            <span className="civicly-tagline text-foreground" style={{ animationDelay: '0.3s' }}>
+            <span
+              className={landed ? 'civicly-tagline text-foreground' : 'block opacity-0'}
+              style={{ animationDelay: `${LINE1_DELAY_S}s` }}
+            >
               {t('splash.taglineLine1')}
             </span>
-            <span className="civicly-tagline civicly-tagline-shine" style={{ animationDelay: '0.7s' }}>
+            <span
+              className={landed ? 'civicly-tagline civicly-tagline-shine' : 'block opacity-0'}
+              style={{ animationDelay: `${LINE2_DELAY_S}s, ${LINE2_DELAY_S + 0.9}s` }}
+            >
               {t('splash.taglineLine2')}
             </span>
           </h2>
@@ -129,7 +152,13 @@ export function EntryGate() {
         <button
           type="button"
           onClick={enter}
-          className="rounded-full bg-primary px-6 py-3 text-base font-semibold text-white shadow-[0_0_24px_rgba(255,69,58,0.5)] transition-transform active:scale-95"
+          tabIndex={ctaVisible ? 0 : -1}
+          aria-hidden={!ctaVisible}
+          // Always laid out (just transparent) so the logo, which the globe pin is aligned
+          // to, doesn't shift when the button appears.
+          className={`rounded-full bg-primary px-6 py-3 text-base font-semibold text-white shadow-[0_0_24px_rgba(255,69,58,0.5)] transition-[opacity,transform] duration-700 active:scale-95 ${
+            ctaVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
         >
           {t('splash.cta')}
         </button>
