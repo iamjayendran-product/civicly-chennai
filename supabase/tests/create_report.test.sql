@@ -8,7 +8,7 @@ select plan(21);
 
 -- AUTH_REQUIRED: no session (no request.jwt.claims set yet)
 select throws_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['00000000-0000-0000-0000-000000000000/a.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['00000000-0000-0000-0000-000000000000/a.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'P0001',
   'AUTH_REQUIRED',
   'calling with no JWT sub claim raises AUTH_REQUIRED'
@@ -23,8 +23,8 @@ set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","r
 
 -- Happy path
 select lives_ok(
-  $$ select public.create_report('pothole', null, 'Deep pothole near bus stop', 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/a.jpg']) $$,
-  'create_report succeeds for a valid pothole report inside the CMDA'
+  $$ select public.create_report('pothole', null, 'Deep pothole near bus stop', 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/a.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
+  'create_report succeeds for a valid pothole report inside GCC limits'
 );
 -- Neither rate_events nor report_owners is readable by anon/authenticated by design
 -- (they are only ever written/read via security-definer RPCs; report_owners keeps
@@ -64,7 +64,7 @@ set local role authenticated;
 -- the privacy fallback signal that flags an unblurred (possibly face-bearing) photo
 -- "for later review".
 select lives_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/blur-fallback.jpg'], array[false]) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/blur-fallback.jpg'], array[false], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'create_report accepts an explicit p_photo_blurred array'
 );
 reset role;
@@ -80,7 +80,7 @@ set local role authenticated;
 -- pattern as report_owners). Enforcement that they're present is client-side only, so
 -- the RPC accepts them as optional and simply stores whatever it's given.
 select lives_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/contact.jpg'], null, 'Jane Reporter', '9876543210') $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/contact.jpg'], null, 'Jane Reporter', '9876543210', p_gender => 'female', p_gcc_street_id => '7553') $$,
   'create_report accepts p_reporter_name and p_reporter_phone'
 );
 reset role;
@@ -102,7 +102,7 @@ set local role authenticated;
 
 -- Omitting them stores no report_contacts row at all (nullable, not defaulted).
 select lives_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/no-contact.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/no-contact.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'create_report still succeeds when p_reporter_name/p_reporter_phone are omitted'
 );
 reset role;
@@ -117,7 +117,7 @@ set local role authenticated;
 
 -- OUTSIDE_GCC: Tambaram is inside the CMDA but outside Greater Chennai Corporation limits
 select throws_ok(
-  $$ select public.create_report('pothole', null, null, 80.1180, 12.9249, array['11111111-1111-1111-1111-111111111111/b.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.1180, 12.9249, array['11111111-1111-1111-1111-111111111111/b.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'P0001',
   'OUTSIDE_GCC',
   'a point outside the GCC limits (Tambaram) raises OUTSIDE_GCC'
@@ -125,7 +125,7 @@ select throws_ok(
 
 -- INVALID_INPUT: category=other without subtype
 select throws_ok(
-  $$ select public.create_report('other', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/c.jpg']) $$,
+  $$ select public.create_report('other', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/c.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'P0001',
   'INVALID_INPUT',
   'category=other without a subtype raises INVALID_INPUT'
@@ -133,7 +133,7 @@ select throws_ok(
 
 -- INVALID_PHOTOS: zero photos
 select throws_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array[]::text[]) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array[]::text[], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'P0001',
   'INVALID_PHOTOS',
   'zero photos raises INVALID_PHOTOS'
@@ -141,7 +141,7 @@ select throws_ok(
 
 -- INVALID_PHOTOS: a path not owned by the caller
 select throws_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['22222222-2222-2222-2222-222222222222/d.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['22222222-2222-2222-2222-222222222222/d.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'P0001',
   'INVALID_PHOTOS',
   'a photo path not owned by the caller raises INVALID_PHOTOS'
@@ -155,7 +155,7 @@ select '11111111-1111-1111-1111-111111111111', 'report', now() - (n || ' minutes
 from generate_series(1, 5) as n;
 set local role authenticated;
 select throws_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/e.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['11111111-1111-1111-1111-111111111111/e.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'P0001',
   'RATE_LIMITED',
   'a 6th report within an hour raises RATE_LIMITED'
@@ -187,7 +187,7 @@ set local request.jwt.claims = '{"sub":"66666666-6666-6666-6666-666666666666","r
 -- call would hash "1.2.3.4" and sail past the cap.
 set local request.headers = '{"x-forwarded-for": "1.2.3.4, 5.6.7.8, 203.0.113.5"}';
 select throws_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['66666666-6666-6666-6666-666666666666/g.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['66666666-6666-6666-6666-666666666666/g.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'P0001',
   'RATE_LIMITED',
   'a 31st report from the same rightmost x-forwarded-for hash within a day raises RATE_LIMITED, independent of per-user limits'
@@ -198,7 +198,7 @@ select throws_ok(
 set local request.jwt.claims = '{"sub":"88888888-8888-8888-8888-888888888888","role":"authenticated","is_anonymous":true}';
 set local request.headers = '{"x-forwarded-for": "203.0.113.5, 198.51.100.9"}';
 select lives_ok(
-  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['88888888-8888-8888-8888-888888888888/h.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.27, 13.06, array['88888888-8888-8888-8888-888888888888/h.jpg'], p_gender => 'female', p_gcc_street_id => '7553') $$,
   'only the rightmost x-forwarded-for entry counts: a spoofed leftmost entry does not carry another IP''s rate-limit bucket'
 );
 

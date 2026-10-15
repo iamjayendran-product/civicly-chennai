@@ -34,6 +34,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       cmda_boundary: {
         Row: {
           geom: unknown
@@ -63,6 +78,62 @@ export type Database = {
           id?: number
         }
         Relationships: []
+      }
+      gcc_submissions: {
+        Row: {
+          attempts: number
+          blocked_at: string | null
+          blocked_by: string | null
+          blocked_reason: string | null
+          claimed_at: string | null
+          complaint_number: string | null
+          created_at: string
+          gender: string
+          last_error: string | null
+          next_attempt_at: string
+          report_id: string
+          status: Database["public"]["Enums"]["gcc_status"]
+          submitted_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          blocked_at?: string | null
+          blocked_by?: string | null
+          blocked_reason?: string | null
+          claimed_at?: string | null
+          complaint_number?: string | null
+          created_at?: string
+          gender: string
+          last_error?: string | null
+          next_attempt_at: string
+          report_id: string
+          status?: Database["public"]["Enums"]["gcc_status"]
+          submitted_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          blocked_at?: string | null
+          blocked_by?: string | null
+          blocked_reason?: string | null
+          claimed_at?: string | null
+          complaint_number?: string | null
+          created_at?: string
+          gender?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          report_id?: string
+          status?: Database["public"]["Enums"]["gcc_status"]
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gcc_submissions_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: true
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_events: {
         Row: {
@@ -185,8 +256,15 @@ export type Database = {
           fix_confirm_count: number
           fixed_at: string | null
           flag_count: number
+          gcc_complaint_number: string | null
+          gcc_road_name: string | null
+          gcc_status: Database["public"]["Enums"]["gcc_status"] | null
+          gcc_street_id: string | null
+          gcc_ward: string | null
+          gcc_zone: string | null
           id: string
           is_hidden: boolean
+          landmark: string | null
           lat: number | null
           lng: number | null
           location: unknown
@@ -202,8 +280,15 @@ export type Database = {
           fix_confirm_count?: number
           fixed_at?: string | null
           flag_count?: number
+          gcc_complaint_number?: string | null
+          gcc_road_name?: string | null
+          gcc_status?: Database["public"]["Enums"]["gcc_status"] | null
+          gcc_street_id?: string | null
+          gcc_ward?: string | null
+          gcc_zone?: string | null
           id?: string
           is_hidden?: boolean
+          landmark?: string | null
           lat?: number | null
           lng?: number | null
           location: unknown
@@ -219,8 +304,15 @@ export type Database = {
           fix_confirm_count?: number
           fixed_at?: string | null
           flag_count?: number
+          gcc_complaint_number?: string | null
+          gcc_road_name?: string | null
+          gcc_status?: Database["public"]["Enums"]["gcc_status"] | null
+          gcc_street_id?: string | null
+          gcc_ward?: string | null
+          gcc_zone?: string | null
           id?: string
           is_hidden?: boolean
+          landmark?: string | null
           lat?: number | null
           lng?: number | null
           location?: unknown
@@ -237,10 +329,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_gcc_submissions: {
+        Args: { p_limit: number }
+        Returns: {
+          category: Database["public"]["Enums"]["report_category"]
+          gcc_road_name: string
+          gcc_street_id: string
+          gcc_ward: string
+          gcc_zone: string
+          gender: string
+          landmark: string
+          lat: number
+          lng: number
+          note: string
+          photo_path: string
+          report_id: string
+          reporter_name: string
+          subtype: Database["public"]["Enums"]["report_subtype"]
+        }[]
+      }
       confirm_same_issue: { Args: { p_report_id: string }; Returns: undefined }
       create_report: {
         Args: {
           p_category: Database["public"]["Enums"]["report_category"]
+          p_gcc_road_name?: string
+          p_gcc_street_id?: string
+          p_gcc_ward?: string
+          p_gcc_zone?: string
+          p_gender?: string
+          p_landmark?: string
           p_lat: number
           p_lng: number
           p_note: string
@@ -266,6 +383,14 @@ export type Database = {
           upvote_count: number
         }[]
       }
+      record_gcc_result: {
+        Args: {
+          p_complaint_number: string
+          p_error: string
+          p_report_id: string
+        }
+        Returns: undefined
+      }
       reports_in_bbox: {
         Args: {
           p_include_fixed?: boolean
@@ -286,8 +411,10 @@ export type Database = {
           upvote_count: number
         }[]
       }
+      trigger_gcc_forward: { Args: never; Returns: undefined }
     }
     Enums: {
+      gcc_status: "pending" | "in_flight" | "submitted" | "failed" | "blocked"
       report_category: "pothole" | "waterlogging" | "other"
       report_status: "open" | "fixed"
       report_subtype:
@@ -428,6 +555,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      gcc_status: ["pending", "in_flight", "submitted", "failed", "blocked"],
       report_category: ["pothole", "waterlogging", "other"],
       report_status: ["open", "fixed"],
       report_subtype: [
