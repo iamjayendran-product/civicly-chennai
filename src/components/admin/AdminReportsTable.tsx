@@ -17,6 +17,8 @@ import { FlagToast } from './FlagToast';
 
 const FILTERS: AdminFilter[] = ['pending', 'flagged', 'filed', 'failed', 'all'];
 const SEARCH_DEBOUNCE_MS = 300;
+/** Must match admin_list_reports' p_limit (src/lib/admin/api.ts). */
+const PAGE_SIZE = 50;
 
 interface Toast {
   ids: string[];
@@ -39,6 +41,8 @@ export function AdminReportsTable() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [reloadKey, setReloadKey] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Debounce typing in search/ward into the query that triggers a reload.
   useEffect(() => {
@@ -58,6 +62,7 @@ export function AdminReportsTable() {
       .then((rows) => {
         if (cancelled) return;
         setReports(rows);
+        setHasMore(rows.length === PAGE_SIZE);
         setError(null);
       })
       .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : String(err)))
@@ -68,6 +73,21 @@ export function AdminReportsTable() {
   }, [filter, query, reloadKey]);
 
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  async function loadMore() {
+    const oldest = reports.at(-1);
+    if (!oldest) return;
+    setLoadingMore(true);
+    try {
+      const rows = await listReports({ filter, search: query.search, ward: query.ward, before: oldest.created_at });
+      setReports((prev) => [...prev, ...rows.filter((row) => !prev.some((p) => p.id === row.id))]);
+      setHasMore(rows.length === PAGE_SIZE);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function flag(ids: string[]) {
     if (ids.length === 0) return;
@@ -205,6 +225,16 @@ export function AdminReportsTable() {
         </tbody>
       </table>
       {!loading && reports.length === 0 && <p className="p-4 text-center text-sm text-muted">{t('admin.empty')}</p>}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={loadMore}
+          disabled={loadingMore}
+          className="self-center rounded-xl border border-line px-4 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          {t('admin.loadMore')}
+        </button>
+      )}
       {toast && (
         <FlagToast
           count={toast.ids.length}

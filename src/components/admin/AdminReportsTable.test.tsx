@@ -136,4 +136,17 @@ describe('AdminReportsTable', () => {
     expect(await screen.findByText(t('report.category.waterlogging'), { selector: 'li *, li' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: t('admin.openMap') })).toHaveAttribute('href', expect.stringContaining('13.052'));
   });
+
+  it('loads older reports on demand when a full page was returned', async () => {
+    const page = Array.from({ length: 50 }, (_, i) =>
+      report({ id: `p${i}`, reporter_name: `Person ${i}`, created_at: new Date(Date.UTC(2026, 9, 15, 9, 59 - i)).toISOString() })
+    );
+    api.listReports.mockResolvedValueOnce(page).mockResolvedValueOnce([report({ id: 'older', reporter_name: 'Older Person' })]);
+    render(<AdminReportsTable />);
+    await screen.findByText('Person 0');
+    fireEvent.click(screen.getByRole('button', { name: t('admin.loadMore') }));
+    expect(await screen.findByText('Older Person')).toBeInTheDocument();
+    expect(api.listReports).toHaveBeenLastCalledWith(expect.objectContaining({ before: page[49].created_at }));
+    expect(screen.getByText('Person 0')).toBeInTheDocument();
+  });
 });

@@ -120,6 +120,7 @@
   "admin.select": "Select report by {{name}}",
   "admin.anonymous": "Anonymous",
   "admin.empty": "No reports here.",
+  "admin.loadMore": "Load older reports",
   "admin.nextRun": "Reports go to GCC 2 hours after they're made. Next send run in about {{minutes}} min.",
   "admin.searchPlaceholder": "Search name, phone, note or street",
   "admin.wardPlaceholder": "Ward",
