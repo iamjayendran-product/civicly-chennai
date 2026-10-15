@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { CategoryPicker } from '@/components/report/CategoryPicker';
 import { PhotoCapture, type CapturedPhoto } from '@/components/report/PhotoCapture';
 import { LocationPicker } from '@/components/report/LocationPicker';
+import { LocationDetails } from '@/components/report/LocationDetails';
+import { useGccStreets } from '@/lib/gcc/useGccStreets';
 import { ReportStepContact } from '@/components/report/ReportStepContact';
 import { DuplicateList } from '@/components/report/DuplicateList';
 import {
@@ -54,6 +56,7 @@ export default function NewReportPage() {
   const [note, setNote] = useState('');
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [location, setLocation] = useState<{ lng: number; lat: number } | null>(null);
+  const gccStreets = useGccStreets(location);
   const [confirmedNotDuplicate, setConfirmedNotDuplicate] = useState(false);
   const [reporterName, setReporterName] = useState('');
   const [reporterPhone, setReporterPhone] = useState('');
@@ -105,8 +108,10 @@ export default function NewReportPage() {
         note,
         photoCount: photos.length,
         hasLocation: location !== null,
+        inServiceArea: gccStreets.status !== 'outside',
+        hasStreet: gccStreets.selected !== null,
       }),
-    [category, subtype, note, photos.length, location]
+    [category, subtype, note, photos.length, location, gccStreets.status, gccStreets.selected]
   );
   const contactErrors = useMemo(
     () => validateReporterContact({ name: reporterName, phone: reporterPhone }),
@@ -190,7 +195,7 @@ export default function NewReportPage() {
         className="relative shrink-0 lg:h-full"
         style={isLargeScreen ? { width: `${100 - indexPanePercent}%` } : { height: `${mapHeightPercent}%` }}
       >
-        <LocationPicker onChange={setLocation} />
+        <LocationPicker value={location} onChange={setLocation} />
       </div>
       {isLargeScreen && (
         <div
@@ -259,6 +264,16 @@ export default function NewReportPage() {
           <>
             {showDetails && (
               <>
+                <LocationDetails
+                  location={location}
+                  status={gccStreets.status}
+                  streets={gccStreets.streets}
+                  selectedRoadId={gccStreets.selected?.roadId ?? null}
+                  landmark={gccStreets.landmark}
+                  onSelectStreet={gccStreets.selectStreet}
+                  onChangeLandmark={gccStreets.setLandmark}
+                  onRetry={gccStreets.retry}
+                />
                 <CategoryPicker
                   category={category}
                   subtype={subtype}

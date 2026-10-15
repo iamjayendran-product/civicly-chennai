@@ -7,6 +7,8 @@ const validDraft: ReportDraft = {
   note: '',
   photoCount: 1,
   hasLocation: true,
+  inServiceArea: true,
+  hasStreet: true,
 };
 
 describe('validateReportDraft', () => {
@@ -32,6 +34,20 @@ describe('validateReportDraft', () => {
 
   it('requires a location', () => {
     expect(validateReportDraft({ ...validDraft, hasLocation: false })).toContain('LOCATION_REQUIRED');
+  });
+
+  it('rejects a location outside GCC limits', () => {
+    expect(validateReportDraft({ ...validDraft, inServiceArea: false, hasStreet: false })).toEqual(['OUTSIDE_GCC']);
+  });
+
+  it('requires a GCC street for a location inside GCC limits', () => {
+    expect(validateReportDraft({ ...validDraft, hasStreet: false })).toEqual(['STREET_REQUIRED']);
+  });
+
+  it('reports only LOCATION_REQUIRED when there is no pin yet', () => {
+    expect(validateReportDraft({ ...validDraft, hasLocation: false, inServiceArea: false, hasStreet: false })).toEqual([
+      'LOCATION_REQUIRED',
+    ]);
   });
 
   it('accepts a note at exactly 280 characters', () => {
