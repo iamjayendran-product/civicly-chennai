@@ -47,7 +47,7 @@ export function buildGccPayload(row: ClaimedSubmission, opts: BuildPayloadOption
     road ? `Street: ${road}${area ? ` (${area})` : ''}` : null,
     row.landmark?.trim() ? `Landmark: ${row.landmark.trim()}` : null,
     opts.photoUrl ? `Photo: ${opts.photoUrl}` : null,
-    `Live report: ${opts.siteUrl.replace(/\/$/, '')}/r/${row.report_id}`,
+    `Live report: ${opts.siteUrl.replace(/\/$/, '')}/home?focus=${row.report_id}`,
   ]
     .filter(Boolean)
     .join('\n');

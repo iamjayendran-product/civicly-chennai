@@ -43,11 +43,12 @@ export function gccChipLabel(input: GccChipInput, now: Date): string {
 }
 
 const TONE: Record<GccStatus, string> = {
-  pending: 'bg-amber-500/15 text-amber-600 dark:text-amber-300',
-  in_flight: 'bg-amber-500/15 text-amber-600 dark:text-amber-300',
-  submitted: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  blocked: 'bg-red-500/15 text-red-700 dark:text-red-300',
-  failed: 'bg-orange-500/15 text-orange-700 dark:text-orange-300',
+  // Mid tones: readable on both the light and the (default) dark theme.
+  pending: 'bg-amber-500/15 text-amber-500',
+  in_flight: 'bg-amber-500/15 text-amber-500',
+  submitted: 'bg-emerald-500/15 text-emerald-500',
+  blocked: 'bg-red-500/15 text-red-400',
+  failed: 'bg-orange-500/15 text-orange-400',
 };
 
 export function GccStatusChip({ input, now }: { input: GccChipInput; now: Date }) {

@@ -106,7 +106,7 @@ function ReportDetails({ report, onRetry }: { report: AdminReport; onRetry: () =
   const mapHref = `https://www.openstreetmap.org/?mlat=${report.lat}&mlon=${report.lng}#map=18/${report.lat}/${report.lng}`;
 
   return (
-    <div className="grid gap-3 text-sm md:grid-cols-[auto,1fr,1fr]">
+    <div className="grid gap-4 text-sm md:grid-cols-[auto_1fr_1fr]">
       <div className="flex flex-wrap gap-2">
         {report.photo_paths.map((path) => (
           <a key={path} href={photoUrl(path)} target="_blank" rel="noreferrer">
@@ -115,7 +115,7 @@ function ReportDetails({ report, onRetry }: { report: AdminReport; onRetry: () =
           </a>
         ))}
       </div>
-      <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1">
+      <dl className="grid h-fit grid-cols-[auto_1fr] gap-x-3 gap-y-1">
         <dt className="text-muted">{t('admin.detail.note')}</dt>
         <dd>{report.note || '—'}</dd>
         <dt className="text-muted">{t('report.location.street')}</dt>

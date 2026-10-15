@@ -51,7 +51,7 @@ describe('buildGccPayload', () => {
     expect(details).toContain('Ward 129');
     expect(details).toContain('Zone 10');
     expect(details).toContain(opts.photoUrl);
-    expect(details).toContain('https://civicly.example/r/0b8e7c1a-0000-4000-8000-000000000001');
+    expect(details).toContain('https://civicly.example/home?focus=0b8e7c1a-0000-4000-8000-000000000001');
   });
 
   it('names the sub-type for "other" reports', () => {
