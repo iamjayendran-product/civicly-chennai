@@ -34,6 +34,18 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          email: string
+        }
+        Insert: {
+          email: string
+        }
+        Update: {
+          email?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           key: string
@@ -329,6 +341,73 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_check_reason: { Args: { p_reason: string }; Returns: undefined }
+      admin_flag_reports: {
+        Args: { p_reason?: string; p_report_ids: string[] }
+        Returns: {
+          already_filed: boolean
+          complaint_number: string
+          report_id: string
+        }[]
+      }
+      admin_list_reports: {
+        Args: {
+          p_before?: string
+          p_filter?: string
+          p_limit?: number
+          p_search?: string
+          p_ward?: string
+        }
+        Returns: {
+          attempts: number
+          blocked_reason: string
+          category: Database["public"]["Enums"]["report_category"]
+          complaint_number: string
+          created_at: string
+          gcc_road_name: string
+          gcc_status: Database["public"]["Enums"]["gcc_status"]
+          gcc_street_id: string
+          gcc_ward: string
+          gcc_zone: string
+          gender: string
+          id: string
+          is_hidden: boolean
+          landmark: string
+          last_error: string
+          lat: number
+          lng: number
+          next_attempt_at: string
+          note: string
+          photo_paths: string[]
+          reporter_name: string
+          reporter_phone: string
+          reporter_report_count: number
+          status: Database["public"]["Enums"]["report_status"]
+          subtype: Database["public"]["Enums"]["report_subtype"]
+          upvote_count: number
+        }[]
+      }
+      admin_reporter_reports: {
+        Args: { p_report_id: string }
+        Returns: {
+          category: Database["public"]["Enums"]["report_category"]
+          created_at: string
+          gcc_status: Database["public"]["Enums"]["gcc_status"]
+          id: string
+          is_hidden: boolean
+          subtype: Database["public"]["Enums"]["report_subtype"]
+        }[]
+      }
+      admin_require: { Args: never; Returns: undefined }
+      admin_retry_gcc: { Args: { p_report_id: string }; Returns: undefined }
+      admin_set_flag_reason: {
+        Args: { p_reason: string; p_report_id: string }
+        Returns: undefined
+      }
+      admin_unflag_reports: {
+        Args: { p_report_ids: string[] }
+        Returns: undefined
+      }
       claim_gcc_submissions: {
         Args: { p_limit: number }
         Returns: {
@@ -369,6 +448,7 @@ export type Database = {
         }
         Returns: string
       }
+      is_admin: { Args: never; Returns: boolean }
       nearby_reports: {
         Args: {
           p_category: Database["public"]["Enums"]["report_category"]

@@ -128,9 +128,27 @@ export function useReports(bbox: BboxParams | null, includeFixed: boolean) {
       })
       .subscribe();
 
+    // An admin flag hides a report, but RLS stops postgres_changes from delivering that
+    // UPDATE (the hidden row is no longer readable), so admin_flag_reports also broadcasts
+    // the id on this public topic.
+    const moderation = supabase
+      .channel('reports-moderation')
+      .on('broadcast', { event: 'report_hidden' }, (message: { payload?: { id?: string } }) => {
+        const id = message.payload?.id;
+        if (!id) return;
+        setReports((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        });
+      })
+      .subscribe();
+
     return () => {
       cancelled = true;
       supabase.removeChannel(channel);
+      supabase.removeChannel(moderation);
     };
   }, [bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, includeFixed, bbox]);
 

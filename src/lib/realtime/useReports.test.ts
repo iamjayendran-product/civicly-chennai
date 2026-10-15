@@ -5,12 +5,14 @@ type ChangeHandler = (payload: { new: Record<string, unknown> }) => void;
 
 let insertHandler: ChangeHandler = () => {};
 let updateHandler: ChangeHandler = () => {};
+let hiddenHandler: (message: { payload: { id: string } }) => void = () => {};
 
 const rpc = vi.fn();
 const channel = {
-  on: vi.fn(function (this: unknown, _event: string, filter: { event: string }, handler: ChangeHandler) {
-    if (filter.event === 'INSERT') insertHandler = handler;
-    if (filter.event === 'UPDATE') updateHandler = handler;
+  on: vi.fn(function (this: unknown, type: string, filter: { event: string }, handler: ChangeHandler) {
+    if (type === 'postgres_changes' && filter.event === 'INSERT') insertHandler = handler;
+    if (type === 'postgres_changes' && filter.event === 'UPDATE') updateHandler = handler;
+    if (type === 'broadcast' && filter.event === 'report_hidden') hiddenHandler = handler as unknown as typeof hiddenHandler;
     return this;
   }),
   subscribe: vi.fn(function (this: unknown) {
@@ -122,5 +124,19 @@ describe('useReports', () => {
       });
     });
     expect(result.current.reports[0]).toMatchObject({ gccStatus: 'submitted', gccComplaintNumber: '2026-48213' });
+  });
+
+  it('removes a pin when an admin flags the report (moderation broadcast)', async () => {
+    rpc.mockResolvedValue({
+      data: [
+        { id: 'm1', category: 'pothole', subtype: null, note: null, lng: 80.25, lat: 13.05, status: 'open', upvote_count: 0, created_at: '2026-01-01T00:00:00Z' },
+      ],
+      error: null,
+    });
+    const { result } = renderHook(() => useReports(bbox, false));
+    await waitFor(() => expect(result.current.reports).toHaveLength(1));
+
+    act(() => hiddenHandler({ payload: { id: 'm1' } }));
+    expect(result.current.reports).toHaveLength(0);
   });
 });
