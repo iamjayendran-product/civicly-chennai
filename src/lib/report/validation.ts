@@ -60,12 +60,16 @@ export function validateReportDraft(draft: ReportDraft): ReportDraftError[] {
   return errors;
 }
 
+/** GCC's complaint form requires one of these. */
+export type ReporterGender = 'male' | 'female' | 'transgender';
+
 export interface ReporterContact {
   name: string;
   phone: string;
+  gender: ReporterGender | null;
 }
 
-export type ReporterContactError = 'NAME_REQUIRED' | 'PHONE_INVALID';
+export type ReporterContactError = 'NAME_REQUIRED' | 'PHONE_INVALID' | 'GENDER_REQUIRED';
 
 // Indian mobile numbers: 10 digits, first digit 6-9. Formatting (spaces, a +91 country
 // code, dashes) is stripped before checking, since users type phone numbers every way.
@@ -81,6 +85,10 @@ export function validateReporterContact(contact: ReporterContact): ReporterConta
   const digitsOnly = contact.phone.replace(/[^\d]/g, '').replace(/^91(?=\d{10}$)/, '');
   if (!INDIAN_MOBILE_PATTERN.test(digitsOnly)) {
     errors.push('PHONE_INVALID');
+  }
+
+  if (contact.gender === null) {
+    errors.push('GENDER_REQUIRED');
   }
 
   return errors;

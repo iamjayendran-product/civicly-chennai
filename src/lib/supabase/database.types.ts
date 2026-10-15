@@ -402,7 +402,11 @@ export type Database = {
         Returns: {
           category: Database["public"]["Enums"]["report_category"]
           created_at: string
+          gcc_complaint_number: string
+          gcc_road_name: string
+          gcc_status: Database["public"]["Enums"]["gcc_status"]
           id: string
+          landmark: string
           lat: number
           lng: number
           note: string

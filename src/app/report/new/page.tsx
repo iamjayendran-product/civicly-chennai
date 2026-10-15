@@ -13,6 +13,7 @@ import {
   validateReportDraft,
   validateReporterContact,
   type ReportCategory,
+  type ReporterGender,
   type ReportSubtype,
 } from '@/lib/report/validation';
 import { getBrowserClient } from '@/lib/supabase/browser';
@@ -60,6 +61,7 @@ export default function NewReportPage() {
   const [confirmedNotDuplicate, setConfirmedNotDuplicate] = useState(false);
   const [reporterName, setReporterName] = useState('');
   const [reporterPhone, setReporterPhone] = useState('');
+  const [reporterGender, setReporterGender] = useState<ReporterGender | null>(null);
   // Below lg the form is two steps in a fixed bottom panel; at lg+ every field shows at once.
   const [step, setStep] = useState<'details' | 'duplicates' | 'contact'>('details');
   const [showStepErrors, setShowStepErrors] = useState(false);
@@ -114,8 +116,8 @@ export default function NewReportPage() {
     [category, subtype, note, photos.length, location, gccStreets.status, gccStreets.selected]
   );
   const contactErrors = useMemo(
-    () => validateReporterContact({ name: reporterName, phone: reporterPhone }),
-    [reporterName, reporterPhone]
+    () => validateReporterContact({ name: reporterName, phone: reporterPhone, gender: reporterGender }),
+    [reporterName, reporterPhone, reporterGender]
   );
 
   function handleNext() {
@@ -128,7 +130,8 @@ export default function NewReportPage() {
   }
 
   async function handleSubmit() {
-    if (draftErrors.length > 0 || contactErrors.length > 0 || !location || !userId) return;
+    const street = gccStreets.selected;
+    if (draftErrors.length > 0 || contactErrors.length > 0 || !location || !userId || !street || !reporterGender) return;
     setSubmitting(true);
     setErrorMessage(null);
     try {
@@ -160,6 +163,12 @@ export default function NewReportPage() {
         p_photo_blurred: photos.map((photo) => photo.blurred),
         p_reporter_name: reporterName.trim(),
         p_reporter_phone: reporterPhone.trim(),
+        p_gender: reporterGender,
+        p_gcc_street_id: street.roadId,
+        p_gcc_road_name: street.roadName,
+        p_gcc_zone: (street.zone ?? null) as string,
+        p_gcc_ward: (street.ward ?? null) as string,
+        p_landmark: (gccStreets.landmark.trim() || null) as string,
       });
 
       if (error) {
@@ -256,6 +265,7 @@ export default function NewReportPage() {
         {submittedReportId ? (
           <div className="flex flex-col gap-2 rounded-xl bg-surface-muted p-4">
             <p className="text-sm font-medium text-foreground">{t('report.success.title')}</p>
+            <p className="text-xs text-muted">{t('report.success.gcc')}</p>
             <Link href={`/home?focus=${submittedReportId}`} className="text-xs text-secondary underline">
               {t('report.success.viewLink')}
             </Link>
@@ -320,8 +330,10 @@ export default function NewReportPage() {
               <ReportStepContact
                 name={reporterName}
                 phone={reporterPhone}
+                gender={reporterGender}
                 onChangeName={setReporterName}
                 onChangePhone={setReporterPhone}
+                onChangeGender={setReporterGender}
               />
             )}
             {((showStepErrors && showDetails && !isLargeScreen) || isLargeScreen || step === 'contact') &&
@@ -330,6 +342,7 @@ export default function NewReportPage() {
                   {(showDetails || isLargeScreen) && draftErrors.map((code) => <li key={code}>{t(`report.errors.${code}`)}</li>)}
                   {showContact && contactErrors.includes('NAME_REQUIRED') && <li>{t('report.contact.nameRequired')}</li>}
                   {showContact && contactErrors.includes('PHONE_INVALID') && <li>{t('report.contact.phoneInvalid')}</li>}
+                  {showContact && contactErrors.includes('GENDER_REQUIRED') && <li>{t('report.contact.genderRequired')}</li>}
                 </ul>
               )}
             {/* Distinct from draftErrors above: this covers the case where local validation
