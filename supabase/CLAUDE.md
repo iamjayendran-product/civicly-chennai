@@ -5,7 +5,8 @@ Everything that enforces a rule lives here. See spec §5 for the schema and func
 ## Layout
 
 - `migrations/` — ordered SQL migrations (append-only; add new files, never edit old).
-- `seed.sql` — CMDA boundary polygon (single row in `cmda_boundary`) + sample reports.
+- `seed.sql` — CMDA boundary polygon (`cmda_boundary`, unused since GCC-only) + sample reports.
+  The GCC boundary (`gcc_boundary`) is inserted by its migration.
 - `tests/` — pgTAP tests, one file per concern (`create_report.test.sql`, `votes.test.sql`, …).
 
 ## Rules for writing SQL here
@@ -13,7 +14,7 @@ Everything that enforces a rule lives here. See spec §5 for the schema and func
 - Geography type is `geography(…, 4326)`; build points with
   `extensions.st_setsrid(extensions.st_makepoint(lng, lat), 4326)::extensions.geography`
   — **lng first**.
-- Boundary check: `ST_Covers(cmda_boundary.geom, point)`.
+- Boundary check: `ST_Covers(gcc_boundary.geom, point)`.
 - Every RPC: `security definer`, `set search_path = ''`, fully qualified names
   (`public.reports`, `extensions.st_dwithin`), explicit `grant execute` to the right
   roles, `revoke` from `public`.
@@ -26,6 +27,8 @@ Everything that enforces a rule lives here. See spec §5 for the schema and func
   → fixed) are applied there too.
 - Photo paths passed to RPCs must start with `auth.uid()::text || '/'`.
 - Only `public.reports` is in the `supabase_realtime` publication.
+- `public.reports` uses column-level select grants: grant every new public column to
+  `anon, authenticated` explicitly.
 - RLS enabled on every table. No `insert/update/delete` policies on domain tables
   (writes via RPC only), except user-scoped `push_subscriptions`.
 

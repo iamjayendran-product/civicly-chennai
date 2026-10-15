@@ -1,7 +1,8 @@
 # Civicly Chennai
 
-Mobile-first PWA where citizens report potholes and other road issues in the Chennai
-Metropolitan Area (CMDA); reports appear live on a public map for everyone.
+Mobile-first PWA where citizens report potholes and other road issues within Greater
+Chennai Corporation (GCC) limits; reports appear live on a public map for everyone and
+are filed with GCC's grievance system after a 2-hour hold (an admin can flag them first).
 
 **Source of truth for scope and design:**
 `docs/superpowers/specs/2026-09-21-chennai-road-grievance-mvp-design.md`.
@@ -16,7 +17,7 @@ in the same PR (or ask first).
   (Next 16 differs from older versions: check `node_modules/next/dist/docs/` before
   using an API, per AGENTS.md)
 - Supabase: Postgres + PostGIS, Realtime, Storage, Auth — `supabase/`
-- MapLibre GL JS + OpenStreetMap vector tiles
+- MapLibre GL JS + OpenStreetMap vector tiles; Mapillary for street view
 - Vitest (unit), pgTAP (database), Playwright (e2e)
 - Package manager: **npm**. Node 24.
 
@@ -51,12 +52,14 @@ local Supabase, or point `.env.local` at a hosted Supabase dev project.
    Google-linked (non-anonymous) user.
 3. **Realtime is the source of map updates.** The map loads via `reports_in_bbox` and
    then applies Realtime `INSERT`/`UPDATE` events on `reports`. No polling.
-4. **CMDA only.** Any location outside the CMDA polygon is rejected server-side
-   (`OUTSIDE_CMDA`). The client clamps the map to the CMDA extent.
+4. **GCC only.** Any location outside the GCC limits polygon is rejected server-side
+   (`OUTSIDE_GCC`). The client clamps the map to the GCC extent and requires a GCC street.
+   Forwarding to GCC runs only through the `gcc_submissions` queue and `/api/gcc/forward`
+   (service role); never call GCC's API from anywhere else.
 5. **Privacy by default.** Photos are resized, EXIF-stripped (re-encode) and
    face/plate-blurred on-device before upload. Never store raw IPs — only salted
    hashes. Never show reporter identity on reports.
-6. **Typed error codes.** RPCs raise `P0001` with a code string (`OUTSIDE_CMDA`,
+6. **Typed error codes.** RPCs raise `P0001` with a code string (`OUTSIDE_GCC`,
    `RATE_LIMITED`, `INVALID_PHOTOS`, `INVALID_INPUT`, `AUTH_REQUIRED`); the UI maps
    codes to messages in the i18n catalog.
 7. **All user-facing strings go through `src/lib/i18n`** (English only for MVP; Tamil
@@ -64,9 +67,9 @@ local Supabase, or point `.env.local` at a hosted Supabase dev project.
 
 ## Out of scope for MVP
 
-Don't build these without a spec change: Tamil UI, admin dashboard, severity ratings,
-forwarding to GCC or other authorities, official accounts, video, native apps, phone
-OTP, SMS/email notifications.
+Don't build these without a spec change: Tamil UI, severity ratings, forwarding to
+authorities other than GCC, admin features beyond the `/admin` review screen (spec §4.8),
+official accounts, video, native apps, phone OTP, SMS/email notifications.
 
 ## Conventions
 
@@ -75,7 +78,7 @@ OTP, SMS/email notifications.
   new one. Name: `YYYYMMDDHHMMSS_short_description.sql`.
 - Regenerate DB types after every migration change and commit them.
 - Secrets only in `.env.local` (git-ignored). `SUPABASE_SERVICE_ROLE_KEY`,
-  `VAPID_PRIVATE_KEY` and `PUSH_WEBHOOK_SECRET` must never be imported into client
-  components.
+  `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET` and `GCC_FORWARD_SECRET` must never be
+  imported into client components.
 - Keep files small and single-purpose; see the structure in spec §6.
 - Commit messages: imperative mood, e.g. `Add create_report RPC with CMDA check`.
