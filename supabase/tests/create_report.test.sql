@@ -3,7 +3,7 @@ create extension if not exists pgtap with schema extensions;
 begin;
 select plan(21);
 
--- Helper: a point well inside the CMDA boundary (central Chennai).
+-- Helper: a point well inside the GCC boundary (central Chennai).
 -- lng=80.27, lat=13.06
 
 -- AUTH_REQUIRED: no session (no request.jwt.claims set yet)
@@ -115,12 +115,12 @@ select is(
 );
 set local role authenticated;
 
--- OUTSIDE_CMDA: a point far outside Chennai (Mumbai)
+-- OUTSIDE_GCC: Tambaram is inside the CMDA but outside Greater Chennai Corporation limits
 select throws_ok(
-  $$ select public.create_report('pothole', null, null, 72.8777, 19.0760, array['11111111-1111-1111-1111-111111111111/b.jpg']) $$,
+  $$ select public.create_report('pothole', null, null, 80.1180, 12.9249, array['11111111-1111-1111-1111-111111111111/b.jpg']) $$,
   'P0001',
-  'OUTSIDE_CMDA',
-  'a point outside the CMDA raises OUTSIDE_CMDA'
+  'OUTSIDE_GCC',
+  'a point outside the GCC limits (Tambaram) raises OUTSIDE_GCC'
 );
 
 -- INVALID_INPUT: category=other without subtype

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CMDA_CENTER, CMDA_MAX_BOUNDS } from '@/lib/geo/cmda';
+import { GCC_CENTER, GCC_MAX_BOUNDS } from '@/lib/geo/serviceArea';
 import type { PlaceResult } from '@/lib/geo/placeSearch';
 import { LocationSearch } from '@/components/map/LocationSearch';
 import { MapStyleSwitcher } from '@/components/map/MapStyleSwitcher';
@@ -12,6 +12,7 @@ import { getMapStyle } from '@/lib/map/styles';
 import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
 import { addStandardControls } from '@/lib/map/standardControls';
+import { addServiceAreaOverlay } from '@/lib/map/serviceAreaOverlay';
 import { t } from '@/lib/i18n';
 
 // See src/components/map/MapView.tsx for why this is needed: maplibre-gl can't resolve
@@ -40,9 +41,9 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
       style: getMapStyle(saved.styleId).style,
       pitch: saved.is3d ? PITCH_3D : 0,
       bearing: saved.is3d ? BEARING_3D : 0,
-      center: [CMDA_CENTER.lng, CMDA_CENTER.lat],
+      center: [GCC_CENTER.lng, GCC_CENTER.lat],
       zoom: 12,
-      maxBounds: CMDA_MAX_BOUNDS,
+      maxBounds: GCC_MAX_BOUNDS,
     });
     mapRef.current = map;
     // Same controls as every other map in the app (see standardControls.ts); a fix from
@@ -55,8 +56,11 @@ export function LocationPicker({ onChange }: LocationPickerProps) {
       onChange({ lng, lat });
     }
 
+    // Re-added after every basemap switch (setStyle wipes layers).
+    map.on('style.load', () => addServiceAreaOverlay(map));
+
     map.on('load', () => {
-      const marker = new maplibregl.Marker({ draggable: true }).setLngLat([CMDA_CENTER.lng, CMDA_CENTER.lat]).addTo(map);
+      const marker = new maplibregl.Marker({ draggable: true }).setLngLat([GCC_CENTER.lng, GCC_CENTER.lat]).addTo(map);
       markerRef.current = marker;
       marker.on('dragend', () => {
         const { lng, lat } = marker.getLngLat();

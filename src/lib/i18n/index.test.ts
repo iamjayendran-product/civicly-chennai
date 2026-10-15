@@ -13,9 +13,13 @@ describe('t', () => {
 
 describe('errorCodeToMessage', () => {
   it('maps every known RPC error code to a distinct message', () => {
-    const codes = ['OUTSIDE_CMDA', 'RATE_LIMITED', 'INVALID_PHOTOS', 'INVALID_INPUT', 'AUTH_REQUIRED'];
+    const codes = ['OUTSIDE_GCC', 'RATE_LIMITED', 'INVALID_PHOTOS', 'INVALID_INPUT', 'AUTH_REQUIRED'];
     const messages = codes.map(errorCodeToMessage);
     expect(new Set(messages).size).toBe(codes.length);
+  });
+
+  it('explains OUTSIDE_GCC in terms of Greater Chennai Corporation limits', () => {
+    expect(errorCodeToMessage('OUTSIDE_GCC')).toMatch(/Greater Chennai Corporation/);
   });
 
   it('falls back to a generic message for an unknown code', () => {

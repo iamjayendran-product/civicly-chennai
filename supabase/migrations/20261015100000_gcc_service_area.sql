@@ -1,0 +1,158 @@
+-- Civicly now only accepts reports inside Greater Chennai Corporation (GCC) limits,
+-- because every report is filed with GCC's grievance system and GCC can only act inside
+-- its own jurisdiction. The CMDA boundary stays in place (unused) for now.
+--
+-- Boundary source: OpenStreetMap relation 1766358 ("Chennai", admin_level=8, the GCC
+-- city limits), exported via polygons.openstreetmap.fr, (c) OpenStreetMap contributors,
+-- ODbL. Fixture (also used by the client map): src/lib/geo/gcc-boundary.json. Inserted here (not in
+-- seed.sql) so hosted databases get it from migrations alone.
+
+create table public.gcc_boundary (
+  id int primary key default 1 check (id = 1),
+  geom extensions.geography(MultiPolygon, 4326) not null
+);
+
+alter table public.gcc_boundary enable row level security;
+create policy "gcc_boundary_select" on public.gcc_boundary for select to anon, authenticated using (true);
+
+insert into public.gcc_boundary (id, geom) values (
+  1,
+  extensions.st_multi(extensions.st_makevalid(
+    extensions.st_geomfromgeojson('{"type":"Polygon","coordinates":[[[80.1401,13.10575],[80.1411,13.10875],[80.1417,13.1151],[80.14235,13.11565],[80.14275,13.1182],[80.1431,13.11935],[80.14345,13.122],[80.14325,13.1241],[80.1437,13.1245],[80.14625,13.1263],[80.14765,13.12765],[80.1471,13.13295],[80.1453,13.13655],[80.14535,13.13865],[80.14545,13.1387],[80.14945,13.13805],[80.1501,13.1398],[80.15205,13.14095],[80.15395,13.14175],[80.1561,13.1414],[80.15855,13.14075],[80.1613,13.14025],[80.16195,13.1395],[80.1637,13.1351],[80.164,13.1349],[80.16505,13.1348],[80.16625,13.13595],[80.1674,13.14],[80.1688,13.1422],[80.1695,13.1425],[80.17045,13.14245],[80.17205,13.1412],[80.17695,13.13785],[80.17845,13.13925],[80.17705,13.1427],[80.17685,13.1464],[80.17735,13.1463],[80.1767,13.1474],[80.17675,13.14885],[80.17745,13.1492],[80.17885,13.14825],[80.17955,13.14875],[80.17965,13.14875],[80.1833,13.14675],[80.18525,13.14775],[80.1947,13.15635],[80.19425,13.15845],[80.19175,13.159],[80.1919,13.164],[80.19335,13.1649],[80.19075,13.1666],[80.1902,13.1678],[80.19165,13.1755],[80.1944,13.1759],[80.19735,13.17425],[80.19805,13.17405],[80.1991,13.17465],[80.1988,13.17555],[80.1989,13.17595],[80.19975,13.1766],[80.2,13.17735],[80.2002,13.1792],[80.20075,13.1795],[80.2016,13.179],[80.2019,13.1783],[80.20165,13.1769],[80.2026,13.1763],[80.2052,13.17535],[80.20645,13.17455],[80.2088,13.1748],[80.21035,13.17525],[80.21085,13.18005],[80.2115,13.18035],[80.2135,13.1805],[80.2136,13.18045],[80.21355,13.1779],[80.2145,13.17745],[80.2176,13.17875],[80.2231,13.1772],[80.22335,13.1802],[80.21995,13.1808],[80.2198,13.18195],[80.2215,13.18455],[80.22185,13.1861],[80.22195,13.18615],[80.22615,13.1852],[80.2279,13.1847],[80.22865,13.18525],[80.22875,13.18525],[80.22995,13.18435],[80.2314,13.185],[80.23155,13.18955],[80.23035,13.1921],[80.2295,13.19565],[80.22825,13.1974],[80.2284,13.19745],[80.2386,13.1963],[80.23905,13.19915],[80.23915,13.19925],[80.2494,13.1988],[80.24975,13.2061],[80.24985,13.2062],[80.25635,13.20585],[80.2664,13.2037],[80.2683,13.2038],[80.2698,13.2037],[80.27075,13.2095],[80.27225,13.21575],[80.2703,13.22035],[80.26705,13.22275],[80.26675,13.2238],[80.26855,13.22485],[80.27005,13.2248],[80.2735,13.2268],[80.2763,13.2266],[80.284,13.22755],[80.28555,13.2265],[80.2883,13.2221],[80.28905,13.2212],[80.2925,13.2205],[80.2937,13.22045],[80.2978,13.2173],[80.29835,13.2139],[80.30015,13.2128],[80.30085,13.21115],[80.30445,13.21115],[80.30625,13.21155],[80.31295,13.2202],[80.316,13.2266],[80.3174,13.22975],[80.3175,13.2313],[80.3235,13.23265],[80.327,13.23525],[80.33045,13.23435],[80.3324,13.2347],[80.33285,13.23485],[80.333,13.2348],[80.32695,13.21795],[80.32285,13.20465],[80.3188,13.1887],[80.3158,13.1742],[80.3128,13.16735],[80.3118,13.16315],[80.31075,13.15945],[80.3075,13.14905],[80.3046,13.1421],[80.3003,13.14295],[80.29975,13.14095],[80.29765,13.1316],[80.29775,13.13015],[80.2986,13.12945],[80.2986,13.12935],[80.29785,13.1267],[80.29695,13.12445],[80.29755,13.1237],[80.29935,13.12305],[80.30215,13.1167],[80.3016,13.11395],[80.2981,13.10255],[80.29765,13.10205],[80.29755,13.10155],[80.2976,13.1011],[80.2982,13.1004],[80.30325,13.0985],[80.3037,13.09795],[80.3038,13.0966],[80.30245,13.09305],[80.3012,13.0904],[80.2948,13.0795],[80.28965,13.0672],[80.28745,13.0623],[80.286,13.05715],[80.2859,13.0571],[80.28255,13.05745],[80.2809,13.04695],[80.28095,13.0463],[80.2811,13.04595],[80.28105,13.04515],[80.28015,13.0351],[80.2784,13.02205],[80.27685,13.0126],[80.2738,13.00225],[80.2725,13.00225],[80.2714,13.00065],[80.27105,12.9978],[80.2723,12.99745],[80.2723,12.99735],[80.27035,12.9895],[80.2685,12.98305],[80.2664,12.97355],[80.26485,12.96525],[80.264,12.96135],[80.2626,12.95625],[80.26295,12.95515],[80.26,12.93815],[80.258,12.9204],[80.25245,12.8761],[80.2493,12.85665],[80.24205,12.8579],[80.24,12.85785],[80.2399,12.8579],[80.2399,12.8581],[80.23605,12.85885],[80.2333,12.85425],[80.23215,12.8519],[80.22855,12.8522],[80.21815,12.8525],[80.2165,12.8539],[80.21715,12.85635],[80.21555,12.85775],[80.2136,12.85995],[80.2118,12.86355],[80.2076,12.87545],[80.21005,12.8795],[80.21285,12.8913],[80.21335,12.90365],[80.21395,12.90925],[80.20885,12.90945],[80.20485,12.9092],[80.20335,12.90925],[80.19585,12.9101],[80.1945,12.90975],[80.1944,12.9098],[80.1948,12.9129],[80.19655,12.9158],[80.197,12.91735],[80.1962,12.91905],[80.1968,12.92095],[80.1973,12.92185],[80.19745,12.9236],[80.1959,12.92405],[80.1955,12.92425],[80.19515,12.92455],[80.1948,12.9257],[80.19505,12.92825],[80.1954,12.92955],[80.1955,12.9306],[80.1943,12.93065],[80.1942,12.9308],[80.194,12.93075],[80.19395,12.9308],[80.194,12.9317],[80.19555,12.93165],[80.1956,12.93395],[80.1939,12.9342],[80.1927,12.9346],[80.19265,12.93475],[80.19275,12.9353],[80.19345,12.93605],[80.1939,12.9361],[80.1941,12.9362],[80.19435,12.93675],[80.1952,12.93685],[80.196,12.9367],[80.19585,12.93745],[80.1967,12.9381],[80.1969,12.93845],[80.1969,12.9388],[80.1973,12.93915],[80.1984,12.93975],[80.1995,12.9413],[80.2003,12.94365],[80.1989,12.948],[80.2014,12.94905],[80.2019,12.9507],[80.20185,12.95145],[80.2016,12.9521],[80.20125,12.9527],[80.2007,12.953],[80.19925,12.9534],[80.1974,12.9534],[80.19475,12.9532],[80.19385,12.9529],[80.1937,12.9525],[80.1938,12.9516],[80.1936,12.95145],[80.1932,12.95145],[80.1926,12.95165],[80.19235,12.952],[80.1923,12.95295],[80.1921,12.9538],[80.192,12.95395],[80.19065,12.9541],[80.1904,12.9544],[80.19065,12.95635],[80.1918,12.95655],[80.1921,12.95735],[80.1903,12.95735],[80.1876,12.9582],[80.1877,12.95865],[80.1878,12.95875],[80.1887,12.9585],[80.18885,12.9591],[80.1893,12.95945],[80.19045,12.9654],[80.19035,12.96555],[80.19,12.96565],[80.1898,12.96585],[80.1898,12.96595],[80.1901,12.9671],[80.1907,12.96745],[80.19105,12.9685],[80.1898,12.9691],[80.18875,12.96945],[80.18775,12.96955],[80.18735,12.9694],[80.1861,12.9694],[80.18575,12.96905],[80.18445,12.96885],[80.18315,12.9682],[80.1819,12.9679],[80.17635,12.971],[80.17675,12.97245],[80.1763,12.9755],[80.1762,12.9777],[80.1754,12.97855],[80.17535,12.9794],[80.1751,12.9796],[80.17425,12.97985],[80.1737,12.9799],[80.1727,12.9797],[80.1653,12.9811],[80.16615,12.984],[80.1604,12.9987],[80.16265,13.0027],[80.16355,13.00395],[80.16345,13.00605],[80.16335,13.0062],[80.159,13.0067],[80.15885,13.00745],[80.15935,13.0107],[80.1602,13.01075],[80.1603,13.01165],[80.1613,13.0117],[80.16105,13.0129],[80.16145,13.0142],[80.1611,13.01455],[80.16005,13.0145],[80.15965,13.01495],[80.15935,13.01505],[80.1588,13.01495],[80.1579,13.0136],[80.1566,13.01305],[80.15585,13.01305],[80.1548,13.01325],[80.1544,13.0137],[80.1539,13.0141],[80.1534,13.01435],[80.15315,13.0149],[80.1529,13.0151],[80.1526,13.016],[80.1517,13.0165],[80.15145,13.0169],[80.1502,13.0173],[80.1493,13.0174],[80.14905,13.01735],[80.14885,13.01685],[80.14795,13.01685],[80.1476,13.01695],[80.14745,13.01725],[80.1473,13.0208],[80.14635,13.0212],[80.1451,13.0213],[80.14475,13.02145],[80.14495,13.0231],[80.14535,13.0237],[80.14535,13.0241],[80.1452,13.02455],[80.14505,13.02755],[80.1453,13.03165],[80.1473,13.03185],[80.14775,13.03325],[80.1478,13.0338],[80.14725,13.03385],[80.1465,13.03355],[80.1461,13.03395],[80.1461,13.03445],[80.1464,13.0362],[80.1464,13.0413],[80.1487,13.0414],[80.14975,13.04095],[80.14975,13.03995],[80.1502,13.03985],[80.15055,13.0411],[80.15855,13.0412],[80.16085,13.04115],[80.16125,13.0428],[80.1612,13.04565],[80.16155,13.04615],[80.1621,13.04635],[80.16235,13.04665],[80.1625,13.0475],[80.16195,13.05015],[80.1614,13.05065],[80.1614,13.0558],[80.16165,13.06125],[80.16165,13.063],[80.1618,13.0636],[80.16275,13.06395],[80.1631,13.0643],[80.163,13.06685],[80.1628,13.0672],[80.1621,13.0671],[80.16195,13.0672],[80.16205,13.0683],[80.1623,13.06855],[80.16265,13.06875],[80.16295,13.06945],[80.16295,13.07035],[80.1626,13.07165],[80.16195,13.0721],[80.1621,13.07245],[80.1619,13.0726],[80.1606,13.07285],[80.16025,13.07345],[80.1602,13.07895],[80.16035,13.0792],[80.16125,13.0793],[80.16125,13.07965],[80.15975,13.0804],[80.1566,13.0812],[80.15405,13.0821],[80.153,13.08315],[80.1511,13.0844],[80.15135,13.08495],[80.1503,13.08625],[80.14965,13.08645],[80.1474,13.08615],[80.14695,13.08665],[80.14605,13.087],[80.1459,13.0874],[80.14595,13.08785],[80.1462,13.08795],[80.1462,13.0881],[80.14545,13.08955],[80.14435,13.09015],[80.14485,13.09255],[80.1435,13.0955],[80.14035,13.0978],[80.1401,13.10575]]]}')
+  ))::extensions.geography
+);
+
+-- Existing reports outside GCC limits (local/demo seed rows from the CMDA era) are
+-- hidden rather than deleted.
+update public.reports r
+set is_hidden = true
+where not exists (
+  select 1 from public.gcc_boundary gb where extensions.st_covers(gb.geom, r.location)
+);
+
+-- Same signature as before, so `create or replace` replaces it in place; only the
+-- boundary table and the error code change (OUTSIDE_CMDA -> OUTSIDE_GCC).
+create or replace function public.create_report(
+  p_category public.report_category,
+  p_subtype public.report_subtype,
+  p_note text,
+  p_lng float8,
+  p_lat float8,
+  p_photo_paths text[],
+  p_photo_blurred boolean[] default null,
+  p_reporter_name text default null,
+  p_reporter_phone text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid;
+  v_point extensions.geography;
+  v_report_id uuid;
+  v_ip text;
+  v_salt text;
+  v_ip_hash text;
+  v_path text;
+begin
+  v_user_id := (auth.jwt() ->> 'sub')::uuid;
+  if v_user_id is null then
+    raise exception 'AUTH_REQUIRED' using errcode = 'P0001';
+  end if;
+
+  if (p_category = 'other') <> (p_subtype is not null) then
+    raise exception 'INVALID_INPUT' using errcode = 'P0001';
+  end if;
+  if p_note is not null and char_length(p_note) > 280 then
+    raise exception 'INVALID_INPUT' using errcode = 'P0001';
+  end if;
+
+  if p_photo_paths is null or array_length(p_photo_paths, 1) is null
+     or array_length(p_photo_paths, 1) < 1 or array_length(p_photo_paths, 1) > 3 then
+    raise exception 'INVALID_PHOTOS' using errcode = 'P0001';
+  end if;
+  foreach v_path in array p_photo_paths loop
+    if v_path is null or left(v_path, length(v_user_id::text) + 1) <> (v_user_id::text || '/') then
+      raise exception 'INVALID_PHOTOS' using errcode = 'P0001';
+    end if;
+  end loop;
+
+  v_point := extensions.st_setsrid(extensions.st_makepoint(p_lng, p_lat), 4326)::extensions.geography;
+  if not exists (
+    select 1 from public.gcc_boundary cb where extensions.st_covers(cb.geom, v_point)
+  ) then
+    raise exception 'OUTSIDE_GCC' using errcode = 'P0001';
+  end if;
+
+  if (
+    select count(*) from public.rate_events
+    where user_id = v_user_id and action = 'report' and created_at > now() - interval '1 hour'
+  ) >= 5 then
+    raise exception 'RATE_LIMITED' using errcode = 'P0001';
+  end if;
+  if (
+    select count(*) from public.rate_events
+    where user_id = v_user_id and action = 'report' and created_at > now() - interval '1 day'
+  ) >= 20 then
+    raise exception 'RATE_LIMITED' using errcode = 'P0001';
+  end if;
+
+  -- Each proxy hop APPENDS the address it received the request from to
+  -- `x-forwarded-for`, so the RIGHTMOST entry is the one our own edge observed and the
+  -- only one a client cannot forge; every entry to its left is attacker-controlled.
+  -- Taking the leftmost entry let any client mint a fresh rate-limit bucket per request.
+  -- (split_part with a negative index counts from the right; PG 14+.)
+  v_ip := split_part(coalesce(current_setting('request.headers', true)::json ->> 'x-forwarded-for', ''), ',', -1);
+  v_ip := nullif(trim(v_ip), '');
+  if v_ip is not null then
+    select decrypted_secret into v_salt from vault.decrypted_secrets where name = 'road_grievance_ip_salt';
+    -- A missing salt made `v_ip || v_salt` NULL, so the hash was NULL, so the per-IP cap
+    -- silently matched nothing and disabled itself. That is a deployment error, not a
+    -- user-facing validation failure, so it fails loudly as an ordinary exception rather
+    -- than as one of the five typed P0001 codes.
+    if v_salt is null then
+      raise exception 'road_grievance_ip_salt secret is missing from vault';
+    end if;
+    v_ip_hash := encode(extensions.digest(v_ip || v_salt, 'sha256'), 'hex');
+    if (
+      select count(*) from public.rate_events
+      where ip_hash = v_ip_hash and action = 'report' and created_at > now() - interval '1 day'
+    ) >= 30 then
+      raise exception 'RATE_LIMITED' using errcode = 'P0001';
+    end if;
+  end if;
+
+  insert into public.reports (category, subtype, note, location)
+  values (p_category, p_subtype, p_note, v_point)
+  returning id into v_report_id;
+
+  insert into public.report_owners (report_id, reporter_id)
+  values (v_report_id, v_user_id);
+
+  -- blurred defaults to true (today's behavior) only when p_photo_blurred is null;
+  -- otherwise it's taken positionally from p_photo_blurred, same order as p_photo_paths.
+  insert into public.report_photos (report_id, storage_path, kind, uploaded_by, blurred)
+  select
+    v_report_id,
+    path.value,
+    'report',
+    v_user_id,
+    coalesce(p_photo_blurred[path.ordinality], true)
+  from unnest(p_photo_paths) with ordinality as path(value, ordinality);
+
+  -- Only stored when both are provided — "mandatory" is enforced by the client's
+  -- Submit dialog, not this RPC, so a caller that omits them simply gets no row here.
+  if p_reporter_name is not null and p_reporter_phone is not null then
+    insert into public.report_contacts (report_id, name, phone)
+    values (v_report_id, p_reporter_name, p_reporter_phone);
+  end if;
+
+  insert into public.rate_events (user_id, ip_hash, action)
+  values (v_user_id, v_ip_hash, 'report');
+
+  return v_report_id;
+end;
+$$;
+

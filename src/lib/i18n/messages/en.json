@@ -1,5 +1,5 @@
 {
-  "errors.OUTSIDE_CMDA": "This location is outside the Chennai Metropolitan Area. Reports can only be filed within CMDA limits.",
+  "errors.OUTSIDE_GCC": "This spot is outside Greater Chennai Corporation limits. Reports can only be filed within GCC limits.",
   "errors.RATE_LIMITED": "You've submitted a lot of reports recently. Please try again later.",
   "errors.INVALID_PHOTOS": "Please attach 1 to 3 photos taken just now for this report.",
   "errors.INVALID_INPUT": "Please check the category, subtype and note before submitting.",

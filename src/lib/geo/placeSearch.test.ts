@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { buildNominatimSearchUrl, parseNominatimResults } from './placeSearch';
+import { GCC_BBOX } from './serviceArea';
 
 describe('buildNominatimSearchUrl', () => {
-  it('includes the query and restricts to the CMDA bounding box', () => {
+  it('includes the query and restricts to the GCC bounding box', () => {
     const url = buildNominatimSearchUrl('T Nagar');
+    const viewbox = new URL(url).searchParams.get('viewbox');
+    expect(viewbox).toBe(`${GCC_BBOX.minLng},${GCC_BBOX.maxLat},${GCC_BBOX.maxLng},${GCC_BBOX.minLat}`);
     expect(url).toContain('https://nominatim.openstreetmap.org/search?');
     expect(url).toContain('q=T+Nagar');
     expect(url).toContain('bounded=1');

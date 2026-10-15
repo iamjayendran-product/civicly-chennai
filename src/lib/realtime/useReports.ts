@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import type { BboxParams } from '@/lib/geo/cmda';
+import type { BboxParams } from '@/lib/geo/serviceArea';
 import type { Database } from '@/lib/supabase/database.types';
 
 type Category = Database['public']['Enums']['report_category'];

@@ -49,6 +49,21 @@ export type Database = {
         }
         Relationships: []
       }
+      gcc_boundary: {
+        Row: {
+          geom: unknown
+          id: number
+        }
+        Insert: {
+          geom: unknown
+          id?: number
+        }
+        Update: {
+          geom?: unknown
+          id?: number
+        }
+        Relationships: []
+      }
       rate_events: {
         Row: {
           action: string
