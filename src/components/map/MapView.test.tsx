@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { screen } from '@testing-library/react';
+import { t } from '@/lib/i18n';
 import { GCC_MAX_BOUNDS } from '@/lib/geo/serviceArea';
 import { SERVICE_AREA_MASK_LAYER_ID } from '@/lib/map/serviceAreaOverlay';
 
@@ -25,7 +27,10 @@ vi.mock('maplibre-gl', () => {
   const GeolocateControl = vi.fn().mockImplementation(function () {
     return { __type: 'geolocate' };
   });
-  return { Map, NavigationControl, GeolocateControl, setWorkerUrl: vi.fn() };
+  const FullscreenControl = vi.fn().mockImplementation(function () {
+    return { __type: 'fullscreen' };
+  });
+  return { Map, NavigationControl, GeolocateControl, FullscreenControl, setWorkerUrl: vi.fn() };
 });
 
 vi.mock('next/navigation', () => ({
@@ -82,5 +87,22 @@ describe('MapView initial viewport', () => {
 
     const layerIds = mapInstance.addLayer.mock.calls.map(([layer]) => (layer as { id: string }).id);
     expect(layerIds).toContain(SERVICE_AREA_MASK_LAYER_ID);
+  });
+
+  it('opens flat and offers GCC’s Map | Satellite switch instead of the view menu', () => {
+    render(<MapView />);
+    const MapCtor = maplibregl.Map as unknown as ReturnType<typeof vi.fn>;
+    const options = MapCtor.mock.calls.at(-1)![0] as Record<string, unknown>;
+    expect(options.pitch).toBe(0);
+    expect(screen.getAllByRole('button', { name: t('map.style.satellite') }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: t('map.style.title') })).not.toBeInTheDocument();
+  });
+
+  it('adds a fullscreen control', () => {
+    render(<MapView />);
+    const MapCtor = maplibregl.Map as unknown as ReturnType<typeof vi.fn>;
+    const mapInstance = MapCtor.mock.results.at(-1)!.value as { addControl: ReturnType<typeof vi.fn> };
+    const FullscreenCtor = maplibregl.FullscreenControl as unknown as ReturnType<typeof vi.fn>;
+    expect(mapInstance.addControl).toHaveBeenCalledWith(FullscreenCtor.mock.results.at(-1)!.value, 'bottom-left');
   });
 });

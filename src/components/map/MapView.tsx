@@ -12,9 +12,9 @@ import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
 import { Legend } from './Legend';
-import { MapStyleSwitcher } from './MapStyleSwitcher';
+import { MapSatelliteToggle } from './MapSatelliteToggle';
 import { getMapStyle } from '@/lib/map/styles';
-import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
+import { loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
 import { addStandardControls } from '@/lib/map/standardControls';
 import { fitCameraToPins } from '@/lib/map/fitPins';
@@ -92,7 +92,7 @@ export function MapView() {
     router.replace('/home', { scroll: false });
   }, [reports, focusReportId, router]);
 
-  const { appearance, changeStyle, toggle3d } = useMapAppearance(mapRef);
+  const { appearance, changeStyle } = useMapAppearance(mapRef);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -100,8 +100,8 @@ export function MapView() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: getMapStyle(saved.styleId).style,
-      pitch: saved.is3d ? PITCH_3D : 0,
-      bearing: saved.is3d ? BEARING_3D : 0,
+      pitch: 0,
+      bearing: 0,
       // Opens fitted to the whole GCC extent rather than a fixed zoom level, so the
       // initial view always shows exactly the area `maxBounds` clamps panning to.
       bounds: GCC_MAX_BOUNDS,
@@ -110,8 +110,10 @@ export function MapView() {
       maxBounds: padBounds(GCC_MAX_BOUNDS, clampMarginFor(containerRef.current.clientHeight)),
     });
     mapRef.current = map;
-    // Same controls as every other map in the app (see standardControls.ts).
+    // Same controls as every other map in the app (see standardControls.ts), plus
+    // fullscreen like GCC's map. Bottom-left, because the filter/search header covers the top.
     addStandardControls(map);
+    map.addControl(new maplibregl.FullscreenControl(), 'bottom-left');
 
     function updateBboxFromMap() {
       setBbox(boundsToBboxParams(map.getBounds()));
@@ -288,12 +290,7 @@ export function MapView() {
           corner (bottom-right) and can grow taller than its collapsed button on first
           load, before the user's first drag collapses it — this clears that. */}
       <div className="absolute bottom-16 right-2 z-10 flex flex-col items-end gap-2">
-        <MapStyleSwitcher
-          value={appearance.styleId}
-          onChange={changeStyle}
-          is3d={appearance.is3d}
-          onToggle3d={toggle3d}
-        />
+        <MapSatelliteToggle value={appearance.styleId} onChange={changeStyle} />
         <Legend />
       </div>
       <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />

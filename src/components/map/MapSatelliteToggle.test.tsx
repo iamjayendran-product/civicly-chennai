@@ -25,8 +25,8 @@ describe('MapSatelliteToggle', () => {
     expect(onChange).toHaveBeenCalledWith('satellite');
   });
 
-  it('treats any non-satellite saved view as Map', () => {
-    render(<MapSatelliteToggle value="dark" onChange={vi.fn()} />);
+  it('marks Map pressed for the street map', () => {
+    render(<MapSatelliteToggle value="light" onChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: t('map.style.map') })).toHaveAttribute('aria-pressed', 'true');
   });
 });
