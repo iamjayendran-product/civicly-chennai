@@ -1,4 +1,4 @@
--- Demo data: 30 potholes + 20 waterlogging reports at random spots inside the CMDA
+-- Demo data: 30 potholes + 20 waterlogging reports at random spots inside GCC limits
 -- boundary, so the map has something to show.
 --
 -- Local dev database:
@@ -14,7 +14,7 @@
 --      where reporter_id = '00000000-0000-4000-8000-000000000d3e');
 --
 -- Writes directly as the postgres role (bypassing create_report's rate limits and photo
--- requirement), so it needs the cmda_boundary table to be seeded first.
+-- requirement), so it needs the gcc_boundary table (created by its migration).
 
 begin;
 
