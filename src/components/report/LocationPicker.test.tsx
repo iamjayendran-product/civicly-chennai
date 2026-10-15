@@ -22,6 +22,8 @@ vi.mock('maplibre-gl', () => {
       getSource: vi.fn(() => undefined),
       addSource: vi.fn(),
       addLayer: vi.fn(),
+      getLayer: vi.fn(() => undefined),
+      queryRenderedFeatures: vi.fn(() => []),
     };
   });
   const Marker = vi.fn().mockImplementation(function () {
@@ -104,5 +106,19 @@ describe('LocationPicker', () => {
     map.handlers['load'].forEach((h) => h());
     map.handlers['click'].forEach((h) => h({ lngLat: { lng: 80.204032, lat: 13.05202 } }));
     expect(onChange).toHaveBeenCalledWith({ lng: 80.204032, lat: 13.05202 });
+  });
+
+  it('does not move the pin when a street-view coverage line is tapped', () => {
+    const onChange = vi.fn();
+    render(<LocationPicker value={null} onChange={onChange} />);
+    const map = lastMap() as ReturnType<typeof lastMap> & {
+      getLayer: ReturnType<typeof vi.fn>;
+      queryRenderedFeatures: ReturnType<typeof vi.fn>;
+    };
+    map.handlers['load'].forEach((h) => h());
+    map.getLayer.mockReturnValue({});
+    map.queryRenderedFeatures.mockReturnValue([{}]);
+    map.handlers['click'].forEach((h) => h({ point: { x: 1, y: 1 }, lngLat: { lng: 80.2, lat: 13.05 } }));
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

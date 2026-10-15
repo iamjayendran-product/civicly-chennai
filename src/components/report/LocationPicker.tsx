@@ -13,6 +13,8 @@ import { loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
 import { addStandardControls } from '@/lib/map/standardControls';
 import { addServiceAreaOverlay } from '@/lib/map/serviceAreaOverlay';
+import { isStreetViewHit } from '@/lib/map/mapillary';
+import { StreetView } from '@/components/map/StreetView';
 import { t } from '@/lib/i18n';
 
 // See src/components/map/MapView.tsx for why this is needed: maplibre-gl can't resolve
@@ -83,7 +85,11 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
         const { lng, lat } = marker.getLngLat();
         setLocation(lng, lat);
       });
-      map.on('click', (event) => setLocation(event.lngLat.lng, event.lngLat.lat));
+      map.on('click', (event) => {
+        // A tap on a street-view line opens imagery (StreetView), not a new pin spot.
+        if (isStreetViewHit(map, event.point)) return;
+        setLocation(event.lngLat.lng, event.lngLat.lat);
+      });
 
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -130,7 +136,10 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
       <div className="absolute left-1/2 top-3 z-10 w-[min(28rem,calc(100%-12rem))] -translate-x-1/2 max-sm:left-3 max-sm:top-14 max-sm:w-[calc(100%-4.5rem)] max-sm:translate-x-0">
         <LocationSearch onSelect={handleSearchSelect} />
       </div>
-      <div ref={containerRef} className="h-full w-full flex-1 [&_.maplibregl-popup-content]:whitespace-pre-line [&_.maplibregl-popup-content]:text-sm" />
+      <div ref={containerRef} className="h-full w-full flex-1 [&_.maplibregl-popup-content]:whitespace-pre-line [&_.maplibregl-popup-content]:text-sm [&_.maplibregl-popup-content]:text-neutral-900" />
+      <div className="absolute bottom-10 right-3 z-10">
+        <StreetView mapRef={mapRef} />
+      </div>
       <p className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-surface/90 px-2 py-1 text-xs text-muted">
         {gpsDenied ? t('report.location.gpsDenied') : t('report.location.dragHint')}
       </p>

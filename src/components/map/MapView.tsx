@@ -13,6 +13,7 @@ import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
 import { Legend } from './Legend';
 import { MapSatelliteToggle } from './MapSatelliteToggle';
+import { StreetView } from './StreetView';
 import { getMapStyle } from '@/lib/map/styles';
 import { loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
@@ -290,6 +291,7 @@ export function MapView() {
           corner (bottom-right) and can grow taller than its collapsed button on first
           load, before the user's first drag collapses it — this clears that. */}
       <div className="absolute bottom-16 right-2 z-10 flex flex-col items-end gap-2">
+        <StreetView mapRef={mapRef} />
         <MapSatelliteToggle value={appearance.styleId} onChange={changeStyle} />
         <Legend />
       </div>
