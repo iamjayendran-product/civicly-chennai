@@ -101,8 +101,8 @@ Single screen, bottom-sheet flow:
    2026-09-25 amendment in §3) or the user may continue.
 5. **Note** (optional, ≤ 280 chars).
 6. **Contact** (step 2): name and phone (required by the form; the phone is never sent to
-   GCC) and **gender** (required — GCC's complaint form requires Male / Female /
-   Transgender).
+   GCC) and **gender** (required: Male / Female / Transgender, because GCC's complaint
+   form requires it; the form itself doesn't say so).
 7. **Submit** → upload photos to Storage → call `create_report` RPC.
 
 Server rejects with a typed error code when:
@@ -139,8 +139,9 @@ with a two-step form: (1) category, note, photo; (2) name and phone.
   switch (Satellite default), fullscreen and a street-view button (§4.9). The 3D toggle
   and the Dark/Terrain views were removed. The choice is remembered per device and shared,
   with the same zoom/compass/locate controls, by the Discovery map and the report form's map.
-- The pin sheet shows the report's GCC status: being filed / "Filed with GCC · Complaint
-  #N" / couldn't be filed.
+- Citizen-facing screens never mention GCC or the filing (product decision, 2026-10-15):
+  no notice on the form, no status on the pin sheet or success screen. GCC status and
+  complaint numbers are shown only on the admin screen (§4.8).
 - Pins are Google-style teardrops coloured by category (fixed = grey) with the category
   symbol on a white disc.
 - Tapping a pin opens a sheet with photos, category, age, +1 count, actions.

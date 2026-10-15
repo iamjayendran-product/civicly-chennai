@@ -40,8 +40,8 @@ describe('ReportStepContact', () => {
     expect(screen.getByRole('radio', { name: t('report.contact.gender.female') })).toBeChecked();
   });
 
-  it('tells the reporter what GCC receives and that the phone number is never shared', () => {
+  it('does not mention GCC', () => {
     renderStep();
-    expect(screen.getByText(t('report.contact.gccNotice'))).toBeInTheDocument();
+    expect(screen.queryByText(/GCC|Corporation/)).not.toBeInTheDocument();
   });
 });

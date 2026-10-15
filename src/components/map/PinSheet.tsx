@@ -47,15 +47,6 @@ export function PinSheet({ report, onClose }: PinSheetProps) {
         {' · '}
         {t('pinSheet.upvotes', { count: shownReport.upvoteCount })}
       </p>
-      {shownReport.gccStatus === 'submitted' && shownReport.gccComplaintNumber && (
-        <p className="mt-1 text-xs font-medium text-foreground">
-          {t('pinSheet.gcc.submitted', { number: shownReport.gccComplaintNumber })}
-        </p>
-      )}
-      {(shownReport.gccStatus === 'pending' || shownReport.gccStatus === 'in_flight') && (
-        <p className="mt-1 text-xs text-muted">{t('pinSheet.gcc.pending')}</p>
-      )}
-      {shownReport.gccStatus === 'failed' && <p className="mt-1 text-xs text-warning">{t('pinSheet.gcc.failed')}</p>}
     </div>
   );
 }

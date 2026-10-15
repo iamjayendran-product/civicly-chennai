@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { t } from '@/lib/i18n';
 import type { ReportPin } from '@/lib/realtime/useReports';
 import { PinSheet } from './PinSheet';
 
@@ -15,28 +14,13 @@ const base: ReportPin = {
   status: 'open',
   upvoteCount: 0,
   createdAt: '2026-10-15T00:00:00Z',
-  gccStatus: 'pending',
-  gccComplaintNumber: null,
+  gccStatus: 'submitted',
+  gccComplaintNumber: '2026-48213',
 };
 
-describe('PinSheet GCC status', () => {
-  it('shows the GCC complaint number once filed', () => {
-    render(<PinSheet report={{ ...base, gccStatus: 'submitted', gccComplaintNumber: '2026-48213' }} onClose={vi.fn()} />);
-    expect(screen.getByText(t('pinSheet.gcc.submitted', { number: '2026-48213' }))).toBeInTheDocument();
-  });
-
-  it('says it is being filed while pending', () => {
+describe('PinSheet', () => {
+  it('does not show anything about GCC filing to citizens', () => {
     render(<PinSheet report={base} onClose={vi.fn()} />);
-    expect(screen.getByText(t('pinSheet.gcc.pending'))).toBeInTheDocument();
-  });
-
-  it('says when filing with GCC failed', () => {
-    render(<PinSheet report={{ ...base, gccStatus: 'failed' }} onClose={vi.fn()} />);
-    expect(screen.getByText(t('pinSheet.gcc.failed'))).toBeInTheDocument();
-  });
-
-  it('shows nothing about GCC for reports that were never queued', () => {
-    render(<PinSheet report={{ ...base, gccStatus: null }} onClose={vi.fn()} />);
-    expect(screen.queryByText(t('pinSheet.gcc.pending'))).not.toBeInTheDocument();
+    expect(screen.queryByText(/GCC|Corporation|2026-48213/)).not.toBeInTheDocument();
   });
 });

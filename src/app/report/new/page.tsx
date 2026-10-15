@@ -265,7 +265,6 @@ export default function NewReportPage() {
         {submittedReportId ? (
           <div className="flex flex-col gap-2 rounded-xl bg-surface-muted p-4">
             <p className="text-sm font-medium text-foreground">{t('report.success.title')}</p>
-            <p className="text-xs text-muted">{t('report.success.gcc')}</p>
             <Link href={`/home?focus=${submittedReportId}`} className="text-xs text-secondary underline">
               {t('report.success.viewLink')}
             </Link>

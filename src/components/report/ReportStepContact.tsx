@@ -55,7 +55,6 @@ export function ReportStepContact({ name, phone, gender, onChangeName, onChangeP
           </label>
         ))}
       </div>
-      <p className="text-xs text-muted">{t('report.contact.gccNotice')}</p>
     </div>
   );
 }
