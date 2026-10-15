@@ -29,10 +29,10 @@ where id in (
 );
 
 with points as (
-  -- Uniformly random points inside the boundary polygon: every one is covered by the
-  -- CMDA geometry by construction, so none can trip OUTSIDE_CMDA.
-  select (st_dump(extensions.st_generatepoints(cb.geom::extensions.geometry, 50))).geom as geom
-  from public.cmda_boundary cb
+  -- Uniformly random points inside the GCC limits: every one is covered by the GCC
+  -- geometry by construction, so none can trip OUTSIDE_GCC.
+  select (st_dump(extensions.st_generatepoints(gb.geom::extensions.geometry, 50))).geom as geom
+  from public.gcc_boundary gb
 ),
 numbered as (
   select geom, row_number() over (order by random()) as n from points
