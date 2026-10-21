@@ -64,8 +64,9 @@ local Supabase, or point `.env.local` at a hosted Supabase dev project.
 
 ## Out of scope for MVP
 
-Don't build these without a spec change: Tamil UI, admin dashboard, severity ratings,
-forwarding to GCC or other authorities, official accounts, video, native apps, phone
+Don't build these without a spec change: Tamil UI, moderator dashboard, severity ratings,
+automatic forwarding to GCC or other authorities (the single-admin manual GCC filing log at
+`/admin` is in scope — see `docs/superpowers/specs/2026-10-21-gcc-filing-admin-design.md`), official accounts, video, native apps, phone
 OTP, SMS/email notifications.
 
 ## Conventions

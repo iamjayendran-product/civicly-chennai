@@ -21,8 +21,10 @@ pin, and makes that report appear **live** on a public map for everyone viewing 
 
 ### Non-goals (MVP)
 
-Tamil UI (i18n scaffolding only), admin/moderator dashboard, severity ratings,
-forwarding to GCC or other civic bodies, official/contractor accounts, video uploads,
+Tamil UI (i18n scaffolding only), moderator dashboard, severity ratings,
+automatic forwarding to GCC or other civic bodies (a single-admin **manual GCC filing
+log** is in scope — amended 2026-10-21, see `2026-10-21-gcc-filing-admin-design.md`),
+official/contractor accounts, video uploads,
 native apps, phone OTP login, SMS/email notifications.
 
 ## 2. Decisions
