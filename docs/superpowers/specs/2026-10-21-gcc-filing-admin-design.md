@@ -18,8 +18,8 @@ This feature adds a private `/admin` screen that:
    and one-tap copy buttons;
 2. lets Jay record the **GCC complaint ID**, a free-text note and a **GCC status**
    against the report, and update the status later;
-3. shows the public a small **"Filed with GCC · <date>"** badge on the report. The ID
-   itself stays private.
+3. keeps all of it **admin-only**: nothing about GCC filing is shown publicly (Jay's
+   decision, 2026-10-21: the public badge was dropped).
 
 Success: Jay can work through the queue on a phone, file each report on GCC in another
 tab, paste the complaint number back, and never lose track of which reports were filed
@@ -33,21 +33,22 @@ or where each one stands.
 - Record and edit the GCC complaint ID, status and note, with automatic filed-at and
   filed-by.
 - A history of every save, so status changes over time are visible.
-- A public "Filed with GCC" badge that updates live.
 
 ### Non-goals
 - Automatic submission to GCC, or scraping or syncing GCC's status. Everything is
   entered by hand.
 - Multiple admins, roles or an admin-management UI. Adding an admin means one SQL insert.
 - Moderation tools (hide or unhide, edit reports), analytics, exports.
-- Showing the GCC complaint ID publicly.
+- Any public "Filed with GCC" badge or other public indication of filing (dropped
+  2026-10-21; would need its own spec change).
 - Forwarding to any authority other than GCC.
 
 ### Anti-goals (a failure even if it "works")
 - Reporter name or phone reachable by anyone except the admin, through the Data API,
   Realtime or page source.
 - Admin checks done only in Next.js. The database must refuse non-admins on its own.
-- A public badge that leaks the complaint ID or who filed it.
+- Any GCC filing data (ID, status, note, filer, or even the fact of filing) reaching
+  a public surface.
 
 ### Spec amendment
 In the MVP spec §1 Non-goals, replace "admin/moderator dashboard" and "forwarding to GCC
@@ -121,15 +122,9 @@ create table public.gcc_filing_events (
   actor        uuid not null references auth.users(id),
   created_at   timestamptz not null default now()
 );
-
--- Public, denormalised: drives the badge and travels over Realtime.
-alter table public.reports add column gcc_filed_at timestamptz;
-grant select (gcc_filed_at) on public.reports to anon, authenticated;
 ```
 
-- `reports_in_bbox` gains `gcc_filed_at` in its return columns. It's a return-type
-  change, so drop and recreate the function, the same way earlier signature changes were
-  done.
+- No change to `public.reports`, `reports_in_bbox` or Realtime.
 - **Status labels:** the codes above follow eGov PGR's standard workflow (Registered,
   Forwarded, Processing, Completed, Rejected, Reopened, Withdrawn, Not Completed). GCC's
   live portal shows statuses only after you enter a real complaint number, so we
@@ -151,11 +146,11 @@ grant select (gcc_filed_at) on public.reports to anon, authenticated;
 | `admin_whoami() returns boolean` | `public.is_admin()`. It's the one admin function that doesn't raise for non-admins. |
 | `admin_gcc_queue(p_tab text, p_status gcc_status default null, p_limit int default 20, p_before timestamptz default null)` | `p_tab` is `'unfiled'` or `'filed'` (anything else raises `INVALID_INPUT`). Returns reports with `status = 'open' and not is_hidden`. **Unfiled:** no `gcc_filings` row, newest `created_at` first. **Filed:** has a row, optionally filtered by `p_status`, newest `updated_at` first. Keyset pagination on that timestamp. Each row includes: id, category, subtype, note, lng, lat, created_at, upvote_count, the reporter's name and phone from `report_contacts` (nullable for older reports), `photo_paths text[]` (kind = 'report'), and the filing fields (complaint_id, status, note, filed_at, updated_at). |
 | `admin_gcc_counts() returns (unfiled int, filed int)` | Tab badges. |
-| `admin_save_gcc_filing(p_report_id uuid, p_complaint_id text, p_status gcc_status default 'registered', p_note text default null)` | Upserts `gcc_filings`. Sets `filed_at`/`filed_by` on first save and `updated_at`/`updated_by` on every save. Appends a `gcc_filing_events` row, and on first save sets `reports.gcc_filed_at = now()`, which fires a Realtime UPDATE so the badge appears live. Raises `INVALID_INPUT` for a blank or overlong ID or note, and for a report that doesn't exist. Returns the saved row plus `duplicate_of uuid[]` (other reports with the same complaint_id). |
+| `admin_save_gcc_filing(p_report_id uuid, p_complaint_id text, p_status gcc_status default 'registered', p_note text default null)` | Upserts `gcc_filings`. Sets `filed_at`/`filed_by` on first save and `updated_at`/`updated_by` on every save. Appends a `gcc_filing_events` row. Raises `INVALID_INPUT` for a blank or overlong ID or note, and for a report that doesn't exist. Returns the saved row plus `duplicate_of uuid[]` (other reports with the same complaint_id). |
 | `admin_gcc_history(p_report_id uuid)` | The event rows for one report, oldest first. |
 
-"Filed with GCC" isn't removed if the report is later fixed or hidden. Such reports
-simply drop out of the queue (see §6).
+If a filed report is later fixed or hidden, its filing record is kept, but the report
+drops out of the queue (see §6).
 
 ## 6. Admin UI — `/admin`
 
@@ -192,31 +187,20 @@ under `admin.*`.
 - Pagination: a "Load more" button (keyset). No Realtime on the admin screen. A
   pull/refresh button re-queries (my call: one admin, so no live updates needed).
 
-## 7. Public badge
-
-- `PinSheet` (map bottom sheet) and, once it exists, `/r/[id]` show a small neutral
-  badge: **"Filed with GCC · 21 Oct"** when `gcc_filed_at` is set. There's no ID, no
-  status and no filer.
-- The Realtime UPDATE on `reports` carries `gcc_filed_at`, so open maps pick it up
-  without polling (architecture rule 3).
-- Add `gcc_filed_at` to the client `Report` type and to `useReports`' UPDATE merge.
-
-## 8. Files (expected)
+## 7. Files (expected)
 
 ```
-supabase/migrations/2026102109xxxx_gcc_filing_admin.sql   # types, tables, column, RPCs, reports_in_bbox
-supabase/tests/gcc_filing_admin.test.sql                   # pgTAP
+supabase/migrations/20261021100{000,100,200}_*.sql         # allowlist; filing tables + save RPC; queue RPCs
+supabase/tests/gcc_*.test.sql                              # pgTAP
 supabase/seed.local.example.sql                            # placeholder admin row (real one git-ignored)
 src/app/admin/page.tsx                                     # gate + queue
 src/components/admin/{AdminGate,GccQueue,GccReportCard,GccFilingForm,CopyButton}.tsx
 src/lib/admin/{gccApi,formatForGcc,complaintIdFormat}.ts   # RPC wrappers + pure helpers (+ tests)
-src/components/map/PinSheet.tsx                            # badge
-src/lib/realtime/useReports.ts                             # gcc_filed_at
-src/lib/i18n/messages/en.json                              # admin.* + gcc status labels + badge
+src/lib/i18n/messages/en.json                              # admin.* + gcc status labels
 src/lib/supabase/database.types.ts                         # regenerated
 ```
 
-## 9. Testing (TDD)
+## 8. Testing (TDD)
 
 - **pgTAP:**
   - Non-admins are refused by every `admin_*` RPC except `admin_whoami`: anon role,
@@ -225,19 +209,17 @@ src/lib/supabase/database.types.ts                         # regenerated
   - `gcc_filings`, `gcc_filing_events` and `admins` are unreadable and unwritable
     directly by anon and authenticated.
   - Queue tab membership, ordering, and the exclusion of fixed and hidden reports.
-  - The upsert sets filed_* only once, appends history, sets `gcc_filed_at` once, and
-    returns duplicates.
-  - `reports_in_bbox` returns `gcc_filed_at`.
+  - The upsert sets filed_* only once, appends history, and returns
+    duplicates.
 - **Vitest:**
   - `formatForGcc` (copy text);
   - `complaintIdFormat` (normalise and soft-validate);
   - the card's state switch between unfiled and filed;
-  - the gate states;
-  - the PinSheet badge.
-- **Playwright** (optional for this feature): admin signs in, files a report, and the
-  badge appears on the map in a second context.
+  - the gate states.
+- **Playwright** (optional for this feature): admin signs in, files a report, and it
+  moves to the Filed tab.
 
-## 10. Calls I made (please check)
+## 9. Calls I made (please check)
 
 1. The admin is identified by **email allowlist** (`public.admins`), and the email is
    seeded outside migrations so it isn't committed.
@@ -250,15 +232,16 @@ src/lib/supabase/database.types.ts                         # regenerated
 5. The ID, status and note are editable, and every save is logged in a **history
    table**.
 6. *(Jay's decision)* Reports that become fixed or hidden **leave the queue**, including
-   the Filed tab, so their GCC status can no longer be updated. Their filing record and
-   public badge remain.
+   the Filed tab, so their GCC status can no longer be updated. Their filing record
+   remains.
+7. There's no address lookup: coordinates plus a Google Maps link only.
+8. The admin screen doesn't use Realtime and refreshes manually.
 9. *(Jay's decision)* GCC complaints are filed with the **reporter's** name and phone, and
    the report form is unchanged.
 10. The local admin seed lives in a **git-ignored** `seed.local.sql`.
-7. There's no address lookup: coordinates plus a Google Maps link only.
-8. The admin screen doesn't use Realtime and refreshes manually.
+11. *(Jay's decision)* There's **no public badge**: filing is admin-only.
 
-## 11. Builder's freedom
+## 10. Builder's freedom
 
 Component breakdown, exact styling, copy-text wording, toast and loading details, and
 pagination size are all up to the builder.

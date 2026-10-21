@@ -3,16 +3,13 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give the single admin a private `/admin` work queue for filing Civicly reports
-with GCC by hand. The admin records each GCC complaint ID, status and note there, and
-the public sees a live "Filed with GCC" badge.
+with GCC by hand. The admin records each GCC complaint ID, status and note there. All
+filing data stays admin-only.
 
-**Architecture:** One append-only migration adds the following, all default-deny:
-- `admins`, `gcc_filings` and `gcc_filing_events` tables;
-- a public `reports.gcc_filed_at` column;
-- admin-gated `security definer` RPCs.
-
-The Next.js `/admin` page is a thin client over those RPCs. The badge reads
-`gcc_filed_at` from `reports_in_bbox` and from the existing Realtime UPDATE stream.
+**Architecture:** Three append-only migrations add the `admins`, `gcc_filings` and
+`gcc_filing_events` tables (all default-deny) and admin-gated `security definer` RPCs.
+The Next.js `/admin` page is a thin client over those RPCs. Public tables, map RPCs and
+Realtime don't change.
 
 **Tech Stack:** Supabase Postgres (plpgsql, pgTAP), Next.js 16 App Router, React 19,
 TypeScript strict, Tailwind v4, Vitest + Testing Library.
@@ -35,14 +32,13 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   - `20261021100000_admin_allowlist.sql`
   - `20261021100100_gcc_filings.sql`
   - `20261021100200_gcc_queue_rpcs.sql`
-  - `20261021100300_reports_in_bbox_gcc_filed_at.sql`
 
-  Regenerate `database.types.ts` in Task 4.
+  Regenerate `database.types.ts` in Task 3.
 - All UI strings go through `t()` in `src/lib/i18n` (`en.json`); none are hard-coded.
 - The admin email is never committed. Only `seed.local.example.sql` (with a placeholder)
   is tracked.
-- Public surfaces never expose `complaint_id`, `status`, `note` or the filer. Only
-  `gcc_filed_at` is public.
+- Nothing GCC-related reaches a public surface: `public.reports`, `reports_in_bbox`,
+  Realtime and the map stay unchanged.
 - GCC status codes, in this order: `registered, forwarded, processing, completed,
   rejected, reopened, withdrawn, not_completed`.
 - Complaint ID format hint is `^\d{4}-\d{3}[A-Z]{3}$`, placeholder `2026-736JEJ`.
@@ -63,15 +59,14 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
    - An all-whitespace ID is rejected with `INVALID_INPUT`, not saved as empty.
    *Task 2 tests.*
 3. **Re-saving a filed report.**
-   - Changing only the status keeps the original `filed_at`/`filed_by` and
-     `reports.gcc_filed_at`.
+   - Changing only the status keeps the original `filed_at`/`filed_by`.
    - It still appends a history row.
    *Task 2 tests.*
 4. **Older reports with no `report_contacts` row** still appear in the queue, with null
    name and phone, and the card shows "—" rather than crashing. *Task 3 (pgTAP) and
-   Task 6 (card test).*
-5. **A report becomes fixed or hidden after filing.** It leaves the Filed tab, the
-   counts drop, and the map badge data is unaffected. *Task 3 tests.*
+   Task 5 (card test).*
+5. **A report becomes fixed or hidden after filing.** It leaves the Filed tab and the
+   counts drop. *Task 3 tests.*
 
 ---
 
@@ -126,8 +121,6 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 - Produces:
   - `public.gcc_status` enum;
   - `public.gcc_filings` and `public.gcc_filing_events` as specified in spec §4;
-  - `public.reports.gcc_filed_at timestamptz`, with a select grant to `anon,
-    authenticated`;
   - `public.admin_save_gcc_filing(p_report_id uuid, p_complaint_id text, p_status
     public.gcc_status default 'registered', p_note text default null)
     returns table (report_id uuid, complaint_id text, status public.gcc_status, note
@@ -142,22 +135,20 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   - non-admin call → `throws_ok(..., 'P0001', 'AUTH_REQUIRED')`;
   - admin saves A with `' 2026-736jej '`, then `gcc_filings.complaint_id =
     '2026-736JEJ'`, `status = 'registered'`, and `filed_by` = admin;
-  - `reports.gcc_filed_at` for A is not null, and there's 1 event row;
+  - there's 1 event row;
   - `'   '` → `INVALID_INPUT`; a 41-character ID → `INVALID_INPUT`; a 1001-character
     note → `INVALID_INPUT`; an unknown report id → `INVALID_INPUT`;
-  - re-save A with `status => 'processing'`: `filed_at` and `reports.gcc_filed_at` are
-    unchanged (capture both before re-saving), `status = 'processing'`, and there are 2
+  - re-save A with `status => 'processing'`: `filed_at` and `filed_by` are
+    unchanged (capture them before re-saving), `status = 'processing'`, and there are 2
     event rows;
   - save B with `'2026-736JEJ'`: the returned `duplicate_of` = `{A}`;
   - as `authenticated`, `select` from `gcc_filings` and from `gcc_filing_events`
     throws `42501`;
-  - `anon` can `select gcc_filed_at from public.reports`.
 - [ ] **Step 2: Run** `npm run db:reset && npm run db:test`. Expected: the new file
   FAILs.
 - [ ] **Step 3: Implement.** Normalise with `upper(btrim(p_complaint_id))`. Use
   `insert ... on conflict (report_id) do update`, setting only `complaint_id, status,
-  note, updated_at, updated_by`. Set `reports.gcc_filed_at` with
-  `coalesce(gcc_filed_at, now())`, which also fires the Realtime UPDATE. Treat a blank
+  note, updated_at, updated_by`. Treat a blank
   or whitespace `p_note` as null.
 - [ ] **Step 4: Run** `npm run db:test`. Expected: all PASS.
 - [ ] **Step 5: Commit** "Add gcc_filings tables and admin_save_gcc_filing RPC".
@@ -167,6 +158,7 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 **Files:**
 - Create: `supabase/migrations/20261021100200_gcc_queue_rpcs.sql`
 - Create: `supabase/tests/gcc_queue.test.sql`
+- Modify: `src/lib/supabase/database.types.ts` (regenerated)
 
 **Interfaces:**
 - Produces:
@@ -209,35 +201,12 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   `gcc_filings.updated_at` for filed. Keyset: `sort_key < p_before`. Clamp `p_limit` to
   1..100. Aggregate photos with `array_agg(storage_path order by created_at) filter
   (where kind = 'report')`.
-- [ ] **Step 4: Run** `npm run db:test`. Expected: PASS.
-- [ ] **Step 5: Commit** "Add admin GCC queue, counts and history RPCs".
-
-### Task 4: `reports_in_bbox` returns `gcc_filed_at`; regenerate types
-
-**Files:**
-- Create: `supabase/migrations/20261021100300_reports_in_bbox_gcc_filed_at.sql`
-- Modify: `supabase/tests/reports_in_bbox.test.sql` (add one assertion and bump the
-  plan count)
-- Modify: `src/lib/supabase/database.types.ts` (regenerated)
-
-**Interfaces:**
-- Produces: `reports_in_bbox(...)` with the same parameters as today, returning its
-  current columns plus `gcc_filed_at timestamptz` as the last column.
-
-- [ ] **Step 1: Add the failing assertion.** After setting `gcc_filed_at` on a fixture
-  report, `reports_in_bbox(...)` returns it for that row.
-- [ ] **Step 2: Run** `npm run db:test`. Expected: FAIL (no such column).
-- [ ] **Step 3: Implement.** Copy the current body from the latest migration that
-  defines `reports_in_bbox` (`grep -l reports_in_bbox supabase/migrations/*`). Then
-  `drop function public.reports_in_bbox(float8, float8, float8, float8, boolean)`,
-  recreate it with the extra column, and re-apply its grants.
 - [ ] **Step 4: Run** `npm run db:test && npm run db:types && npm run typecheck`.
-  Expected: all PASS, and the types include `admin_gcc_queue`, `gcc_status` and
-  `gcc_filed_at`.
-- [ ] **Step 5: Commit** "Return gcc_filed_at from reports_in_bbox and regenerate DB
+  Expected: all PASS, and the types include `admin_gcc_queue` and `gcc_status`.
+- [ ] **Step 5: Commit** "Add admin GCC queue, counts and history RPCs and regenerate DB
   types".
 
-### Task 5: Pure helpers, the RPC client and i18n strings
+### Task 4: Pure helpers, the RPC client and i18n strings
 
 **Files:**
 - Create: `src/lib/admin/complaintIdFormat.ts` and `complaintIdFormat.test.ts`
@@ -246,7 +215,7 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 - Modify: `src/lib/i18n/messages/en.json`
 
 **Interfaces:**
-- Consumes: the generated `Database` types (Task 4).
+- Consumes: the generated `Database` types (Task 3).
 - Produces:
   - `normaliseComplaintId(raw: string): string`, which trims and uppercases;
   - `looksLikeGccComplaintId(id: string): boolean`, using the format regex;
@@ -320,11 +289,10 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   - `admin.errors.AUTH_REQUIRED` "Your session isn't an admin session. Sign in again."
   - `admin.errors.INVALID_INPUT` "Check the complaint ID (3–40 characters) and note
     (up to 1000)."
-  - `pinSheet.gccFiled` "Filed with GCC · {{date}}"
 - [ ] **Step 4: Run** `npm test -- src/lib/admin && npm run typecheck`. Expected: PASS.
 - [ ] **Step 5: Commit** "Add GCC admin helpers, RPC client and strings".
 
-### Task 6: Report card and filing form
+### Task 5: Report card and filing form
 
 **Files:**
 - Create: `src/components/admin/CopyButton.tsx`
@@ -332,7 +300,7 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 - Create: `src/components/admin/GccReportCard.tsx` and `GccReportCard.test.tsx`
 
 **Interfaces:**
-- Consumes: `QueueRow`, `gccApi`, the helpers and `GCC_STATUSES` (Task 5).
+- Consumes: `QueueRow`, `gccApi`, the helpers and `GCC_STATUSES` (Task 4).
 - Produces:
   - `CopyButton({ text, label }: { text: string; label: string })`. It uses
     `navigator.clipboard.writeText` and shows `admin.copy.done` for 1.5 s.
@@ -362,7 +330,7 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   PASS.
 - [ ] **Step 5: Commit** "Add GCC report card and filing form".
 
-### Task 7: `/admin` page with sign-in gate, tabs and queue
+### Task 6: `/admin` page with sign-in gate, tabs and queue
 
 **Files:**
 - Create: `src/app/admin/page.tsx` (server component: exports `metadata = { title:
@@ -403,39 +371,11 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 - [ ] **Step 4: Run** `npm test && npm run lint && npm run typecheck`. Expected: PASS.
 - [ ] **Step 5: Commit** "Add /admin page with Google gate and GCC queue".
 
-### Task 8: Public "Filed with GCC" badge
-
-**Files:**
-- Modify: `src/lib/realtime/useReports.ts` (`ReportPin.gccFiledAt: string | null`, in
-  `BboxRow` and `bboxRowToPin`)
-- Modify: `src/lib/realtime/useReports.test.ts`
-- Modify: `src/components/map/PinSheet.tsx`
-- Create: `src/components/map/PinSheet.test.tsx`
-
-**Interfaces:**
-- Consumes: the `gcc_filed_at` column (Task 4) and `pinSheet.gccFiled` (Task 5).
-- Produces: `ReportPin.gccFiledAt`.
-
-- [ ] **Step 1: Write failing tests.**
-  - `useReports`: a bbox row with `gcc_filed_at: '2026-10-21T05:00:00Z'` gives a pin
-    with `gccFiledAt` set. A Realtime UPDATE that adds `gcc_filed_at` updates the
-    existing pin.
-  - `PinSheet`: with `gccFiledAt` set, it renders "Filed with GCC · 21 Oct". With null,
-    there's no badge. The rendered text never contains a complaint ID (the pin has no
-    such field, so assert that the badge text is exactly the formatted string).
-- [ ] **Step 2: Run** `npm test -- src/lib/realtime src/components/map`. Expected: FAIL.
-- [ ] **Step 3: Implement.** In PinSheet, add a small neutral pill under the status
-  line. Format the date with `Intl.DateTimeFormat('en-IN', { day: 'numeric', month:
-  'short' })`. Update any other `ReportPin` fixtures that typecheck flags.
-- [ ] **Step 4: Run** `npm test && npm run typecheck`. Expected: PASS.
-- [ ] **Step 5: Commit** "Show Filed with GCC badge on the map pin sheet".
-
-### Task 9: Spec sync and end-to-end check
+### Task 7: Spec sync and end-to-end check
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-09-21-chennai-road-grievance-mvp-design.md`
-  - §5: add the `admins`, `gcc_filings` and `gcc_filing_events` tables, the
-    `reports.gcc_filed_at` column, and the five `admin_*` RPCs plus `is_admin` to the
+  - §5: add the `admins`, `gcc_filings` and `gcc_filing_events` tables, and the five `admin_*` RPCs plus `is_admin` to the
     RPC table (auth column "admin");
   - §6: add `app/admin/page.tsx` and `components/admin/`.
 
@@ -448,7 +388,6 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   2. File one report as `2026-736jej`. Expected: the toast reads "Saved · 2026-736JEJ"
      and the card moves to Filed.
   3. Change its status to Processing and check that History shows 2 entries.
-  4. In a second browser on `/home`, open that pin. Expected: "Filed with GCC · <today>"
      appears without a reload.
 
   If the Google provider isn't configured, record that it was skipped. Don't claim it
