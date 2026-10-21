@@ -6,8 +6,8 @@
 with GCC by hand. The admin records each GCC complaint ID, status and note there. All
 filing data stays admin-only.
 
-**Architecture:** Three append-only migrations add the `admins`, `gcc_filings` and
-`gcc_filing_events` tables (all default-deny) and admin-gated `security definer` RPCs.
+**Architecture:** Three append-only migrations add a hard-coded single-email
+`is_admin()` check, the `gcc_filings` and `gcc_filing_events` tables (default-deny), and admin-gated `security definer` RPCs.
 The Next.js `/admin` page is a thin client over those RPCs. Public tables, map RPCs and
 Realtime don't change.
 
@@ -24,19 +24,19 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   errcode = 'P0001'; end if;`.
 - RPCs are `security definer`, `set search_path = ''`, and every identifier is
   schema-qualified.
-- `admins`, `gcc_filings` and `gcc_filing_events` get RLS enabled, no policies, and
+- `gcc_filings` and `gcc_filing_events` get RLS enabled, no policies, and
   `revoke all ... from anon, authenticated`.
 - Error codes: only `AUTH_REQUIRED` and `INVALID_INPUT`, raised as `P0001`.
 - Migrations are append-only, and each DB task gets its own new file (never edit one
   committed earlier):
-  - `20261021100000_admin_allowlist.sql`
+  - `20261021100000_admin_check.sql`
   - `20261021100100_gcc_filings.sql`
   - `20261021100200_gcc_queue_rpcs.sql`
 
   Regenerate `database.types.ts` in Task 3.
 - All UI strings go through `t()` in `src/lib/i18n` (`en.json`); none are hard-coded.
-- The admin email is never committed. Only `seed.local.example.sql` (with a placeholder)
-  is tracked.
+- The only admin is `iamjayendran@gmail.com`, hard-coded in `is_admin()`. There's no
+  admin table, no seed file, and no Google sign-in.
 - Nothing GCC-related reaches a public surface: `public.reports`, `reports_in_bbox`,
   Realtime and the map stay unchanged.
 - GCC status codes, in this order: `registered, forwarded, processing, completed,
@@ -52,8 +52,8 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 ## Review Focus
 
 1. **Email case and whitespace.** A JWT email of `IamJayendran@Gmail.com` must still
-   match the admins row (citext). An anonymous JWT that somehow carries an email must
-   not. *Task 1 tests.*
+   count as the admin. An anonymous JWT that somehow carries that email must not.
+   *Task 1 tests.*
 2. **Complaint ID input.**
    - Pasted with spaces or lowercase: `" 2026-736jej "` is saved as `2026-736JEJ`.
    - An all-whitespace ID is rejected with `INVALID_INPUT`, not saved as empty.
@@ -70,45 +70,37 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 
 ---
 
-### Task 1: Admin allowlist and `is_admin()`
+### Task 1: Single-email `is_admin()` check
 
 **Files:**
-- Create: `supabase/migrations/20261021100000_admin_allowlist.sql`
+- Create: `supabase/migrations/20261021100000_admin_check.sql`
 - Create: `supabase/tests/gcc_admin_auth.test.sql`
-- Create: `supabase/seed.local.example.sql`
-- Modify: `supabase/config.toml:70` → `sql_paths = ["./seed.sql", "./seed.local.sql"]`
-- Modify: `.gitignore` → add `/supabase/seed.local.sql`
-- Modify: `README.md` → "Admin access" section (local: copy the example file and set
-  your email; hosted: the one-line insert in the SQL editor; enable the Google
-  provider)
+- Modify: `supabase/config.toml` → add `"http://127.0.0.1:3000/admin"` and
+  `"http://localhost:3000/admin"` to `[auth] additional_redirect_urls`
+- Modify: `README.md` → "Admin access" section. It covers:
+  - the magic-link flow, once per device, opening the link in the same browser;
+  - adding `<origin>/admin` to the hosted project's Redirect URLs;
+  - where local emails appear (port 54324).
 
 **Interfaces:**
 - Produces:
-  - `public.admins(email extensions.citext primary key, created_at timestamptz)`;
   - `public.is_admin() returns boolean` (stable, security definer);
   - `public.admin_whoami() returns boolean`, granted to `anon, authenticated`.
 
-- [ ] **Step 1: Write the failing pgTAP test** `gcc_admin_auth.test.sql`. Insert
-  `admin@example.com` into `public.admins`, then assert:
+- [ ] **Step 1: Write the failing pgTAP test** `gcc_admin_auth.test.sql`. Assert:
   - no JWT: `admin_whoami()` returns `false`;
-  - claims `{"sub":<uid>,"role":"authenticated","is_anonymous":false,"email":"Admin@Example.com"}`:
+  - claims `{"sub":<uid>,"role":"authenticated","is_anonymous":false,"email":"IamJayendran@Gmail.com"}`:
     returns `true` (case-insensitive);
-  - same email but `"is_anonymous":true`: returns `false`;
+  - the same email with `"is_anonymous":true`: returns `false`;
   - `"email":"someone@else.com"` with `is_anonymous` false: returns `false`;
-  - as role `authenticated`, `throws_ok($$ select * from public.admins $$, '42501')`;
-  - as `anon`, inserting into `public.admins` throws `42501`.
+  - no `email` claim with `is_anonymous` false: returns `false`.
 - [ ] **Step 2: Run** `npm run db:reset && npm run db:test`. Expected: the new file
   FAILs (function does not exist).
-- [ ] **Step 3: Implement.** Use `create extension if not exists citext with schema
-  extensions`, then the table, RLS, revoke, `is_admin()` and `admin_whoami()` per spec
-  §3. Read claims with `auth.jwt()`. Also add the seed example, config and gitignore
-  changes. `seed.local.example.sql` contains `insert into public.admins (email) values
-  ('you@example.com') on conflict do nothing;`.
-- [ ] **Step 4: Run** `npm run db:reset && npm run db:test`. Expected: all PASS. The
-  reset must also succeed when `seed.local.sql` is absent. If the Supabase CLI errors
-  on a missing path, switch to the glob `"./seed.local*.sql"` and make the example file
-  name `seed.local.example.sql.txt`; record that in the README.
-- [ ] **Step 5: Commit** "Add admin allowlist and is_admin check".
+- [ ] **Step 3: Implement** `is_admin()` and `admin_whoami()` per spec §3. Read claims
+  with `auth.jwt()`. Revoke execute on `is_admin()` from `public` and grant it to
+  `anon, authenticated`.
+- [ ] **Step 4: Run** `npm run db:reset && npm run db:test`. Expected: all PASS.
+- [ ] **Step 5: Commit** "Add single-email is_admin check".
 
 ### Task 2: GCC filing tables and `admin_save_gcc_filing`
 
@@ -128,7 +120,7 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 
 - [ ] **Step 1: Write the failing pgTAP test.** Fixtures:
   - an admin user;
-  - a non-admin Google user;
+  - a signed-in non-admin user (different email);
   - reports A and B (owner rows like `confirm_same_issue.test.sql`).
 
   Assert:
@@ -254,9 +246,10 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 - [ ] **Step 2: Run** `npm test -- src/lib/admin`. Expected: FAIL.
 - [ ] **Step 3: Implement**, and add these `en.json` keys:
   - `admin.title` "GCC filing"
-  - `admin.signIn` "Sign in with Google"
-  - `admin.signOut` "Sign out"
-  - `admin.notAuthorised` "This account isn't an admin."
+  - `admin.signIn.email` "Email"
+  - `admin.signIn.send` "Send sign-in link"
+  - `admin.signIn.sent` "Check your email and open the link in this same browser."
+  - `admin.signIn.failed` "Couldn't send the link. Try again in a few minutes."
   - `admin.tab.unfiled` "Unfiled ({{count}})"
   - `admin.tab.filed` "Filed ({{count}})"
   - `admin.filter.all` "All"
@@ -330,7 +323,7 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
   PASS.
 - [ ] **Step 5: Commit** "Add GCC report card and filing form".
 
-### Task 6: `/admin` page with sign-in gate, tabs and queue
+### Task 6: `/admin` page with magic-link gate, tabs and queue
 
 **Files:**
 - Create: `src/app/admin/page.tsx` (server component: exports `metadata = { title:
@@ -339,6 +332,7 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 - Create: `src/components/admin/GccQueue.tsx` (client; tabs, filter, list, load more,
   refresh)
 - Create: `src/components/admin/AdminApp.test.tsx` and `GccQueue.test.tsx`
+- Possibly modify: `src/components/auth/SessionProvider.tsx` and its test (see Step 3)
 
 **Interfaces:**
 - Consumes: `gccApi`, `GccReportCard`, `GCC_STATUSES`.
@@ -346,12 +340,13 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
 
 - [ ] **Step 1: Write failing tests.**
   - `AdminApp`:
-    - when `getSession` returns no non-anonymous session, it shows "Sign in with
-      Google", and clicking it calls `auth.signInWithOAuth({ provider: 'google',
-      options: { redirectTo: <origin>/admin } })`;
-    - when the session is non-anonymous and `whoami` → false, it shows "This account
-      isn't an admin." and Sign out;
-    - when `whoami` → true, it renders `GccQueue`.
+    - when `whoami` → false, it shows the email field and "Send sign-in link";
+    - submitting `a@b.com` calls `auth.signInWithOtp({ email: 'a@b.com', options:
+      { emailRedirectTo: <origin>/admin } })` and then shows the
+      `admin.signIn.sent` text;
+    - when `signInWithOtp` returns an error, it shows `admin.signIn.failed`;
+    - when `whoami` → true, it renders `GccQueue`;
+    - there's no "not authorised" state.
   - `GccQueue`:
     - on mount it calls `counts()` and `queue({ tab: 'unfiled' })` and shows the tab
       labels with counts;
@@ -362,34 +357,37 @@ first). The base spec is `docs/superpowers/specs/2026-09-21-chennai-road-grievan
       refetch;
     - an empty list shows the empty text for that tab.
 - [ ] **Step 2: Run** `npm test -- src/components/admin`. Expected: FAIL.
-- [ ] **Step 3: Implement.** Before writing, check
-  `node_modules/next/dist/docs/` for the `metadata` export and the `'use client'`
-  boundary. The app's `SessionProvider` signs users in anonymously. On `/admin`,
-  `signInWithOAuth` replaces that session. The anonymous re-sign-in must not clobber a
-  Google session: confirm `SessionProvider` only signs in anonymously when there is no
-  session at all. If it doesn't, fix it there with a test.
+- [ ] **Step 3: Implement.** Before writing:
+  - check `node_modules/next/dist/docs/` for the `metadata` export and the
+    `'use client'` boundary;
+  - confirm the browser client completes the PKCE `?code=` exchange on `/admin` (by
+    default in `@supabase/ssr`). Once auth reports `SIGNED_IN`, re-run `whoami`.
+
+  `SessionProvider` signs users in anonymously. It must only do so when there is no
+  session at all, so it doesn't overwrite the magic-link session. If it doesn't behave
+  that way, fix it there with a test.
 - [ ] **Step 4: Run** `npm test && npm run lint && npm run typecheck`. Expected: PASS.
-- [ ] **Step 5: Commit** "Add /admin page with Google gate and GCC queue".
+- [ ] **Step 5: Commit** "Add /admin page with magic-link gate and GCC queue".
 
 ### Task 7: Spec sync and end-to-end check
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-09-21-chennai-road-grievance-mvp-design.md`
-  - §5: add the `admins`, `gcc_filings` and `gcc_filing_events` tables, and the five `admin_*` RPCs plus `is_admin` to the
+  - §5: add the `gcc_filings` and `gcc_filing_events` tables, and the five `admin_*` RPCs plus `is_admin` to the
     RPC table (auth column "admin");
   - §6: add `app/admin/page.tsx` and `components/admin/`.
 
 - [ ] **Step 1: Edit the spec sections** listed above.
 - [ ] **Step 2: Full verification.** Run `npm run db:reset && npm run db:test && npm
   test && npm run lint && npm run typecheck`. Expected: all PASS.
-- [ ] **Step 3: Manual smoke test** (needs local Supabase with the Google provider and
-  your `seed.local.sql`). Go through this sequence:
+- [ ] **Step 3: Manual smoke test** (needs local Supabase; the magic-link email arrives in
+  the local mail inbox at http://127.0.0.1:54324). Go through this sequence:
   1. Open `/admin`, sign in, and see the Unfiled queue.
   2. File one report as `2026-736jej`. Expected: the toast reads "Saved · 2026-736JEJ"
      and the card moves to Filed.
   3. Change its status to Processing and check that History shows 2 entries.
-     appears without a reload.
+  4. In a private window, open `/admin` and request a link for a different email.
+     Expected: after signing in, it still shows only the email form, never the queue.
 
-  If the Google provider isn't configured, record that it was skipped. Don't claim it
-  passed.
+  If any step can't be run, record it as skipped. Don't claim it passed.
 - [ ] **Step 4: Commit** "Document GCC filing admin in the MVP spec".

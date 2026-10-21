@@ -28,7 +28,7 @@ or where each one stands.
 ## 2. Scope
 
 ### Goals
-- A single-admin `/admin` page, gated server-side to one allowlisted Google account.
+- A single-admin `/admin` page, gated server-side to one hard-coded email address.
 - An Unfiled/Filed queue of open, visible reports.
 - Record and edit the GCC complaint ID, status and note, with automatic filed-at and
   filed-by.
@@ -37,7 +37,8 @@ or where each one stands.
 ### Non-goals
 - Automatic submission to GCC, or scraping or syncing GCC's status. Everything is
   entered by hand.
-- Multiple admins, roles or an admin-management UI. Adding an admin means one SQL insert.
+- Multiple admins, roles, an admin table or an admin-management UI. Changing the admin
+  means a new migration.
 - Moderation tools (hide or unhide, edit reports), analytics, exports.
 - Any public "Filed with GCC" badge or other public indication of filing (dropped
   2026-10-21; would need its own spec change).
@@ -60,35 +61,42 @@ single-admin **manual GCC filing log** is in scope; see
 
 ## 3. Access control
 
-- **Who:** a Google-authenticated (non-anonymous) user whose verified email is in
-  `public.admins`. Initially one row: `iamjayendran@gmail.com`.
+- **Who:** only `iamjayendran@gmail.com` (Jay's decision, 2026-10-21). The email is
+  **hard-coded** in the database check and committed in the migration. Jay accepted that
+  it becomes visible if the repo is ever public. There's no admin table and no seed step.
 - **`public.is_admin()`** (`security definer`, `stable`, `search_path = ''`) returns
-  true when `(auth.jwt() ->> 'is_anonymous')::boolean is not true` **and**
-  `auth.jwt() ->> 'email'` matches a row in `public.admins`, compared case-insensitively.
+  true only when **both** of these hold:
+  - `(auth.jwt() ->> 'is_anonymous')::boolean is not true`;
+  - `lower(btrim(auth.jwt() ->> 'email')) = 'iamjayendran@gmail.com'`.
+
   Every admin RPC begins with `if not public.is_admin() then raise exception
   'AUTH_REQUIRED' using errcode = 'P0001'; end if;`.
-- `public.admins (email citext primary key, created_at)`: RLS on, no policies,
-  `revoke all from anon, authenticated` (the same pattern as `report_contacts`).
-- **Seeding the admin email (my call):** don't commit the email anywhere. Both
-  migrations and `supabase/seed.sql` are tracked in git, and the repo may become public.
-  Instead:
-  - local: create a git-ignored `supabase/seed.local.sql` holding the insert, and add it
-    to `[db.seed] sql_paths` in `supabase/config.toml` after `seed.sql`. Commit a
-    `seed.local.example.sql` with a placeholder email;
-  - hosted: run the one-line `insert into public.admins (email) values (...)` in the
-    Supabase SQL editor. Document it in the README;
-  - pgTAP tests insert their own test admin.
-- **Sign-in on `/admin`:** Google sign-in for the general app doesn't exist yet (the
-  `auth/` components only cover the anonymous session). `/admin` gets its own minimal
-  "Sign in with Google" button using `signInWithOAuth({ provider: 'google',
-  redirectTo: '/admin' })`. It does **not** use `linkIdentity`, because the admin's
-  anonymous session doesn't need to keep its reports. This requires the Google provider
-  to be enabled in the Supabase project, with the OAuth client configured. That's a
-  setup step and needs no code.
+- **Sign-in: email magic link, once per device** (Jay's decision). There's no Google
+  sign-in and no sign-in or "not authorised" screens beyond this minimal step:
+  - On `/admin` without an admin session, the page shows one email field and a "Send
+    sign-in link" button. This calls `supabase.auth.signInWithOtp({ email, options:
+    { emailRedirectTo: <origin>/admin } })`, then shows "Check your email".
+  - Clicking the emailed link returns to `/admin`. The browser client (PKCE, the
+    `@supabase/ssr` default) exchanges the code and replaces the anonymous session. The
+    link must be opened in the **same browser** it was requested from, because the PKCE
+    verifier is stored there. The UI says so.
+  - Supabase keeps the session (with refresh) on that device, so later visits open
+    straight into the queue.
+  - If someone else enters their own email, they get a working session but
+    `admin_whoami()` is false. They just see the same email form again. No separate
+    "not authorised" screen (my call).
+  - The `SessionProvider` must not sign a user back in anonymously while a non-anonymous
+    session exists.
+- **Setup steps (no code):**
+  - add `<origin>/admin` to Auth → URL configuration → Redirect URLs, both locally
+    (`additional_redirect_urls` in `supabase/config.toml`) and on the hosted project;
+  - the hosted project's default email sender is rate-limited to a few emails an hour,
+    which is fine for one admin.
+
+  Locally, emails appear in the Supabase mail inbox (Mailpit/Inbucket, port 54324).
 - **Page gate:** `/admin` is a client page. On load it calls `admin_whoami()`, which
-  returns a boolean, and shows one of three states: sign in, "not authorised" (with a
-  sign-out button), or the queue. This UI gate is only cosmetic. Security comes from the
-  RPCs. Add `robots: noindex` metadata to the page.
+  returns a boolean, and shows either the email form or the queue. This UI gate is only
+  cosmetic. Security comes from the RPCs. Add `robots: noindex` metadata to the page.
 
 ## 4. Data model (new migration, append-only)
 
@@ -192,7 +200,6 @@ under `admin.*`.
 ```
 supabase/migrations/20261021100{000,100,200}_*.sql         # allowlist; filing tables + save RPC; queue RPCs
 supabase/tests/gcc_*.test.sql                              # pgTAP
-supabase/seed.local.example.sql                            # placeholder admin row (real one git-ignored)
 src/app/admin/page.tsx                                     # gate + queue
 src/components/admin/{AdminGate,GccQueue,GccReportCard,GccFilingForm,CopyButton}.tsx
 src/lib/admin/{gccApi,formatForGcc,complaintIdFormat}.ts   # RPC wrappers + pure helpers (+ tests)
@@ -204,9 +211,9 @@ src/lib/supabase/database.types.ts                         # regenerated
 
 - **pgTAP:**
   - Non-admins are refused by every `admin_*` RPC except `admin_whoami`: anon role,
-    anonymous user, and a Google user whose email isn't in `admins`. An admin whose JWT
-    has `is_anonymous = true` is refused too.
-  - `gcc_filings`, `gcc_filing_events` and `admins` are unreadable and unwritable
+    anonymous user, and a signed-in user with a different email. A JWT carrying the
+    admin email but `is_anonymous = true` is refused too.
+  - `gcc_filings` and `gcc_filing_events` are unreadable and unwritable
     directly by anon and authenticated.
   - Queue tab membership, ordering, and the exclusion of fixed and hidden reports.
   - The upsert sets filed_* only once, appends history, and returns
@@ -221,10 +228,10 @@ src/lib/supabase/database.types.ts                         # regenerated
 
 ## 9. Calls I made (please check)
 
-1. The admin is identified by **email allowlist** (`public.admins`), and the email is
-   seeded outside migrations so it isn't committed.
-2. `/admin` has its own **plain Google sign-in** that doesn't link the anonymous
-   session.
+1. *(Jay's decision)* There's a **single hard-coded admin email** in `is_admin()`,
+   committed in the migration.
+2. *(Jay's decision)* **Email magic-link** sign-in, once per device. It doesn't link the
+   anonymous session. Non-admins just see the email form again.
 3. The status list follows **eGov PGR's workflow** (unverified against the live GCC
    page). The labels are easy to change.
 4. Complaint IDs are **soft-validated** and **not unique**, with a warning on
@@ -238,8 +245,7 @@ src/lib/supabase/database.types.ts                         # regenerated
 8. The admin screen doesn't use Realtime and refreshes manually.
 9. *(Jay's decision)* GCC complaints are filed with the **reporter's** name and phone, and
    the report form is unchanged.
-10. The local admin seed lives in a **git-ignored** `seed.local.sql`.
-11. *(Jay's decision)* There's **no public badge**: filing is admin-only.
+10. *(Jay's decision)* There's **no public badge**: filing is admin-only.
 
 ## 10. Builder's freedom
 
