@@ -2,7 +2,8 @@
 
 - **Date:** 2026-09-21
 - **Status:** Approved in brainstorming, pending written-spec review
-- **Scope:** Citizen-facing MVP, Chennai Metropolitan Area (CMDA) only
+- **Scope:** Citizen-facing MVP, Greater Chennai Corporation (GCC) limits only (narrowed from
+  the CMDA on 2026-10-15, when reports started being filed with GCC — see §4.7)
 
 ## 1. Problem & Goal
 
@@ -14,18 +15,19 @@ pin, and makes that report appear **live** on a public map for everyone viewing 
 
 - A first-time visitor can submit a report without creating an account.
 - A submitted report appears on every open map (other browsers) within ~2 seconds.
-- Reports outside the CMDA boundary are rejected.
+- Reports outside GCC limits are rejected.
+- Every report that survives a short hold is filed as a complaint in GCC's grievance system.
 - Obvious abuse (floods of reports, fake pins, ballot-stuffing) is contained without an
   admin team.
 - Runs within Supabase / Vercel / map-tile free tiers at pilot scale (< 10k reports).
 
 ### Non-goals (MVP)
 
-Tamil UI (i18n scaffolding only), moderator dashboard, severity ratings,
-automatic forwarding to GCC or other civic bodies (a single-admin **manual GCC filing
-log** is in scope — amended 2026-10-21, see `2026-10-21-gcc-filing-admin-design.md`),
-official/contractor accounts, video uploads,
-native apps, phone OTP login, SMS/email notifications.
+Tamil UI (i18n scaffolding only), severity ratings, automatic forwarding to GCC or other
+civic bodies, official/contractor accounts, video uploads, native apps, phone OTP login,
+SMS/email notifications. (Automatic forwarding to GCC and an admin review screen were
+added on 2026-10-15 — §4.7, §4.8 — and replaced on 2026-10-22 by a single-admin **manual
+GCC filing log**; see `2026-10-21-gcc-filing-admin-design.md`.)
 
 ## 2. Decisions
 
@@ -34,10 +36,11 @@ native apps, phone OTP login, SMS/email notifications.
 | Platform | Mobile-first Progressive Web App (installable) |
 | Frontend | Next.js (App Router) + TypeScript + Tailwind CSS |
 | Backend | Supabase: Postgres + PostGIS, Realtime, Storage, Auth |
-| Map | MapLibre GL JS + OpenStreetMap vector tiles (MapTiler/Protomaps free tier) |
+| Map | MapLibre GL JS + OpenStreetMap vector tiles; Esri satellite imagery; Mapillary street-level imagery (optional token) |
 | Hosting | Vercel (web), Supabase Cloud (backend) |
 | Language | English only; all strings via an i18n message catalog |
-| Geography | Chennai Metropolitan Area (CMDA) polygon |
+| Geography | Greater Chennai Corporation (GCC) limits polygon (OSM relation 1766358) |
+| Civic body | Reports are filed with GCC's grievance portal (gccservices.in/pgr) after a 2-hour hold |
 | Identity | Silent Supabase anonymous session for everyone; Google One Tap for "extras" |
 | Bot protection | Cloudflare Turnstile (invisible) on anonymous session creation |
 | Business rules | Enforced in Postgres functions (RPC), not in the Next.js layer |
@@ -91,19 +94,24 @@ Single screen, bottom-sheet flow:
    decode → auto-orient → resize to max 1600px long edge → **blur faces and licence
    plates** (in-browser model) → re-encode JPEG q≈0.8 (drops all EXIF).
 3. **Location** (required): starts at device GPS; user can drag the pin. If GPS is denied,
-   the map opens centred on Chennai and the user taps to place the pin.
+   the map opens centred on Chennai and the user taps to place the pin. Laid out like GCC's
+   own complaint form (§4.9): the pin must be inside GCC limits and the reporter picks the
+   **GCC street** for it (required) and can edit the **landmark**.
 4. **Nearby duplicates**: once the pin settles, show open reports of the same category
    within 25 m. Each has "Same issue — +1" (any session, anonymous included, per the
    2026-09-25 amendment in §3) or the user may continue.
 5. **Note** (optional, ≤ 280 chars).
-6. **Submit** → upload photos to Storage → call `create_report` RPC.
+6. **Contact** (step 2): name and phone (required by the form; the phone is never sent to
+   GCC) and **gender** (required: Male / Female / Transgender, because GCC's complaint
+   form requires it; the form itself doesn't say so).
+7. **Submit** → upload photos to Storage → call `create_report` RPC.
 
 Server rejects with a typed error code when:
 
-- `OUTSIDE_CMDA` — point not within the CMDA polygon.
+- `OUTSIDE_GCC` — point not within the GCC limits polygon.
 - `RATE_LIMITED` — > 5 reports/hour or > 20/day per user, or > 30/day per IP hash.
 - `INVALID_PHOTOS` — 0 or > 3 photos, or paths not owned by the caller.
-- `INVALID_INPUT` — bad category/subtype/note length.
+- `INVALID_INPUT` — bad category/subtype/note length, missing/invalid gender, or no GCC street.
 
 On success the reporter's map shows the pin immediately (optimistic), reconciled by the
 Realtime event.
@@ -115,9 +123,10 @@ that opens on a satellite globe over Asia and flies in through India and Tamil N
 Chennai, where the pin lands on the logo (light scrim so the map shows through); the live map at `/home` is the **Discovery page**. On mobile, `/report/new` is a 75% map / 25% form split (the divider is draggable)
 with a two-step form: (1) category, note, photo; (2) name and phone.
 
-- Full-screen MapLibre map, bounded to the CMDA extent plus a margin (40%; 200% on short
-  landscape screens) so the camera can pull back far enough to frame every pin in a tilted
-  3D view. Reports are still only accepted inside the CMDA (server-side).
+- Full-screen MapLibre map, bounded to the GCC extent plus a margin (40%; 200% on short
+  landscape screens) so the camera can pull back far enough to frame every pin. The GCC
+  boundary is outlined and everything outside it is dimmed. Reports are only accepted
+  inside GCC limits (server-side).
 - On first load the camera frames every pin for the device's screen, then the pins drop in.
 - Initial load: `reports_in_bbox(min_lng, min_lat, max_lng, max_lat)` for the viewport,
   refetched (debounced) on pan/zoom. Every report renders as its own pin, unclustered
@@ -127,10 +136,13 @@ with a two-step form: (1) category, note, photo; (2) name and phone.
   removed, new ones added, status changes restyle the pin.
 - Pin style by status: **open** = red, **fixed** = grey. Filter chips per category and
   "show fixed".
-- Basemap views (product decision, 2026-10-02): Satellite + 3D (default), Light, Dark and
-  Terrain, plus a 3D (tilted, extruded buildings) toggle, from a layers button; the
-  choice is remembered per device and shared, with the same zoom/compass/locate
-  controls, by the Discovery map and the report form's map.
+- Basemap views (2026-10-15, matching GCC's complaint-form map): a **Map | Satellite**
+  switch (Satellite default), fullscreen and a street-view button (§4.9). The 3D toggle
+  and the Dark/Terrain views were removed. The choice is remembered per device and shared,
+  with the same zoom/compass/locate controls, by the Discovery map and the report form's map.
+- Citizen-facing screens never mention GCC or the filing (product decision, 2026-10-15):
+  no notice on the form, no status on the pin sheet or success screen. GCC status and
+  complaint numbers are shown only on the admin screen (§4.8).
 - Pins are Google-style teardrops coloured by category (fixed = grey) with the category
   symbol on a white disc.
 - Tapping a pin opens a sheet with photos, category, age, +1 count, actions.
@@ -160,6 +172,68 @@ with Google to keep these on every device and get notified when they're fixed."
 Web Push via VAPID. Signed-in users opt in on the report success screen or My Reports.
 A Supabase Database Webhook on `reports` status → `fixed` calls a Next.js route
 `/api/push/report-fixed` which sends to the reporter's subscriptions (secret-authenticated).
+
+### 4.7 GCC forwarding (added 2026-10-15)
+
+Every report is filed as a complaint in Greater Chennai Corporation's Public Grievance
+Redressal system (`https://gccservices.in/pgr/registercomplaints`) — the same API GCC's
+own form calls: `POST /pgr/api/register`, form-encoded. There is no CAPTCHA, and with
+"share mobile" and "share email" both **No** there is no OTP, so Civicly files
+**without the reporter's mobile or email**. GCC returns a complaint number, which is
+shown on the report.
+
+- **Hold:** each report waits `app_settings.gcc_hold` (default **2 hours**) so an admin
+  can flag it (§4.8). Then it is sent if still open, not hidden and not flagged.
+- **Sender:** `pg_cron` every 5 minutes → `trigger_gcc_forward()` → `POST
+  {SITE_URL}/api/gcc/forward` with a shared secret (both read from Vault:
+  `gcc_forward_url`, `gcc_forward_secret`). The route claims up to 5 due reports
+  (`claim_gcc_submissions`, `for update skip locked`), files them one at a time with a
+  pause between, and records each outcome (`record_gcc_result`). Kill switch:
+  `GCC_FORWARDING_ENABLED`.
+- **Retries:** backoff 5 min, 30 min, 2 h, 12 h; failed after the 5th attempt (an admin
+  can retry). An in-flight claim older than 15 minutes is reclaimed.
+- **Fields sent:** ComplainantName (reporter's name, else "Anonymous (via Civicly
+  Chennai)"), ComplainantAddr + StreetId (the GCC street), Landmark, latitude/longtitude,
+  gender, ComplaintType/ComplaintTitle (mapped below), ComplaintDetails (category, note,
+  street/ward/zone, landmark, photo link, link to the live report), Comp_Image (the first
+  photo as a JPEG data URL under 1 MB). If GCC rejects a submission with an image, it is
+  retried once without it (GCC's own form sends no image).
+- **Category mapping** (from `getComplaintCategories`): pothole → Road and Footpath ›
+  *Pot hole fill up / Repairs to the damaged surface* (112); waterlogging → Water
+  Stagnation › *Stagnation of Water* (138); other/open_manhole → 143; damaged_footpath →
+  115; dug_up_road → 113; debris → Garbage › 99; speed_breaker, signage, other → 112.
+- **Risk:** this is an undocumented GCC endpoint used without a formal agreement; it may
+  change or block us. Mitigations: hold + admin review, low volume, never re-sending a
+  filed report, honest User-Agent, kill switch. Approved access from GCC is being sought.
+
+### 4.8 Admin review (added 2026-10-15)
+
+`/admin`, for allowlisted admins (`admin_users`; signed in by **email magic link**,
+`shouldCreateUser: false`; `is_admin()` requires a non-anonymous user with a confirmed,
+allowlisted email). A table of every report: photo, category, reporter name with their
+report count, phone, ward, GCC status (countdown / number / flag reason / failed). A row
+expands to photos, note, street/landmark, gender, a map link, the reporter's other
+reports and the GCC error with **Retry**. Filters: Pending send (default), Flagged, Filed,
+Failed, All; ward filter; search by name/phone/note/street.
+
+**Flag** (one click, or bulk): hides the report from the public map *and* blocks its GCC
+send; a toast offers **Undo** (re-queued no sooner than 10 minutes later) and an optional
+reason (spam, duplicate, not a road issue, abusive photo, other). Flagging a report GCC
+has already filed only hides it, and says so. Open maps drop the pin via a Realtime
+broadcast (`reports-moderation` / `report_hidden`), since RLS stops `postgres_changes`
+delivering an UPDATE that hides a row. Reporter details are only ever shown here.
+
+### 4.9 Location step, GCC-style (added 2026-10-15)
+
+The report form's map copies GCC's "Complaint Location Details": Map | Satellite top-left,
+place search top-centre (GCC street names first, then OpenStreetMap places), fullscreen
+top-right, tap/drag to drop the pin with a "Latitude : … / Longitude : …" popup. Below it:
+**Street** (GCC streets within 25 m of the pin, nearest first, from GCC's GIS layer
+`GCCDepts/EDPMobile2025` — the same one GCC's form uses), **Landmark**, read-only
+**Latitude/Longitude**. No street found → "move the pin onto the nearest street" and the
+report can't be submitted. Street view: a 🚶 button shows Mapillary coverage lines and
+opens street-level imagery in a panel (hidden without `NEXT_PUBLIC_MAPILLARY_TOKEN`;
+coverage in Chennai is patchy).
 
 ## 5. Data Model (Postgres + PostGIS)
 
@@ -254,8 +328,10 @@ create index on rate_events (ip_hash, action, created_at desc);
 
 | Function | Auth | Purpose |
 |---|---|---|
-| `create_report(category, subtype, note, lng, lat, photo_paths text[])` | any session | Validate, boundary check, rate-limit, insert report + photos, log rate event. Returns report id. |
-| `reports_in_bbox(min_lng, min_lat, max_lng, max_lat, include_fixed bool)` | public | Non-hidden reports in viewport (capped at 2,000). |
+| `create_report(category, subtype, note, lng, lat, photo_paths text[], …, gender, gcc_street_id, gcc_road_name, gcc_zone, gcc_ward, landmark)` | any session | Validate, GCC boundary check, rate-limit, insert report + photos, queue a `gcc_submissions` row, log rate event. Returns report id. |
+| `claim_gcc_submissions(limit)` / `record_gcc_result(report_id, complaint_number, error)` | service_role | GCC forwarding queue (§4.7). |
+| `is_admin()`, `admin_list_reports`, `admin_reporter_reports`, `admin_flag_reports`, `admin_set_flag_reason`, `admin_unflag_reports`, `admin_retry_gcc` | admin | Admin review (§4.8); each raises `AUTH_REQUIRED` unless `is_admin()`. |
+| `reports_in_bbox(min_lng, min_lat, max_lng, max_lat, include_fixed bool)` | public | Non-hidden reports in viewport (capped at 2,000), with GCC status/number, street and landmark. |
 | `nearby_reports(lng, lat, category, radius_m default 25)` | public | Open, non-hidden duplicates candidate list. |
 | `vote(report_id, kind)` | non-anonymous | Insert vote, bump counter, apply flag-hide threshold. |
 | `confirm_fixed(report_id, photo_path)` | non-anonymous | Insert confirmation, apply fixed threshold. |
@@ -321,7 +397,9 @@ src/
     auth/                    # SessionProvider, GoogleOneTap, SignInPrompt
   lib/
     supabase/                # browser & server clients, generated types
-    geo/                     # CMDA bbox constants, bbox helpers
+    geo/                     # GCC service area (boundary, bbox), bbox helpers
+    gcc/                     # GCC street lookup, category map, forwarding (server-only parts)
+    admin/                   # admin RPC wrappers
     images/                  # resize, blur (face/plate), encode pipeline
     realtime/                # useReportsChannel hook
     push/                    # web-push subscribe + server send
@@ -329,7 +407,7 @@ src/
   sw.ts                      # service worker (push + offline shell)
 supabase/
   migrations/                # SQL migrations (schema, RLS, RPC)
-  seed.sql                   # CMDA polygon + sample reports
+  seed.sql                   # CMDA polygon (unused since 2026-10-15) + sample reports
   tests/                     # pgTAP tests
 tests/e2e/                   # Playwright
 ```
@@ -342,8 +420,8 @@ SQL.
 
 1. Client processes photos → uploads to `report-photos/{uid}/…`.
 2. Client calls `rpc('create_report', …)`.
-3. Function validates, checks `ST_Covers(cmda.geom, point)`, checks rate windows,
-   inserts `reports` + `report_photos` + `rate_events` in one transaction.
+3. Function validates, checks `ST_Covers(gcc_boundary.geom, point)`, checks rate windows,
+   inserts `reports` + `report_photos` + `gcc_submissions` + `rate_events` in one transaction.
 4. Postgres WAL → Supabase Realtime → every subscribed client receives `INSERT`.
 5. Clients add the pin if it's within the current viewport/filter.
 
@@ -352,7 +430,7 @@ deleting storage objects older than 24 h with no `report_photos` row.
 
 ## 8. Error Handling
 
-- RPC errors raise with `errcode = 'P0001'` and message = typed code (`OUTSIDE_CMDA`,
+- RPC errors raise with `errcode = 'P0001'` and message = typed code (`OUTSIDE_GCC`,
   `RATE_LIMITED`, …); the client maps codes to friendly messages from the catalog.
 - GPS denied/unavailable → manual pin placement.
 - Photo processing failure (model load fails) → fall back to resize+re-encode without
@@ -377,7 +455,7 @@ deleting storage objects older than 24 h with no `report_photos` row.
 - **Vitest**: image pipeline (dimensions, EXIF gone), error-code mapping, bbox helpers,
   report form validation.
 - **Playwright**: browser A submits a report → browser B sees a new pin without reload;
-  outside-CMDA location shows the error.
+  outside-GCC location shows the error.
 - CI (GitHub Actions): lint, typecheck, Vitest, pgTAP + Playwright against local
   Supabase (Docker).
 
@@ -386,7 +464,12 @@ deleting storage objects older than 24 h with no `report_photos` row.
 - `.env.local`: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
   `SUPABASE_SERVICE_ROLE_KEY` (server only), `NEXT_PUBLIC_MAP_STYLE_URL`,
   `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`,
-  `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET`.
+  `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET`,
+  `NEXT_PUBLIC_MAPILLARY_TOKEN`, and (server only) `GCC_FORWARDING_ENABLED`,
+  `GCC_FORWARD_SECRET`, `GCC_BASE_URL`, `SITE_URL`.
+- Vault secrets: `gcc_forward_url` (`{SITE_URL}/api/gcc/forward`) and
+  `gcc_forward_secret` (= `GCC_FORWARD_SECRET`). Auth redirect URLs must include
+  `{SITE_URL}/admin/auth/callback`; the admin user is created once in the dashboard.
 - Local dev: Supabase CLI via `npx supabase` + Docker Desktop, or a hosted dev project.
 - Supabase Auth settings: enable anonymous sign-ins, Google provider, Turnstile captcha,
   manual identity linking.

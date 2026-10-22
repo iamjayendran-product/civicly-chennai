@@ -1,4 +1,4 @@
--- Demo data: 30 potholes + 20 waterlogging reports at random spots inside the CMDA
+-- Demo data: 30 potholes + 20 waterlogging reports at random spots inside GCC limits
 -- boundary, so the map has something to show.
 --
 -- Local dev database:
@@ -14,7 +14,7 @@
 --      where reporter_id = '00000000-0000-4000-8000-000000000d3e');
 --
 -- Writes directly as the postgres role (bypassing create_report's rate limits and photo
--- requirement), so it needs the cmda_boundary table to be seeded first.
+-- requirement), so it needs the gcc_boundary table (created by its migration).
 
 begin;
 
@@ -29,10 +29,10 @@ where id in (
 );
 
 with points as (
-  -- Uniformly random points inside the boundary polygon: every one is covered by the
-  -- CMDA geometry by construction, so none can trip OUTSIDE_CMDA.
-  select (st_dump(extensions.st_generatepoints(cb.geom::extensions.geometry, 50))).geom as geom
-  from public.cmda_boundary cb
+  -- Uniformly random points inside the GCC limits: every one is covered by the GCC
+  -- geometry by construction, so none can trip OUTSIDE_GCC.
+  select (st_dump(extensions.st_generatepoints(gb.geom::extensions.geometry, 50))).geom as geom
+  from public.gcc_boundary gb
 ),
 numbered as (
   select geom, row_number() over (order by random()) as n from points

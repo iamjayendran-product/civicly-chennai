@@ -1,11 +1,12 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(4);
+select plan(5);
 
 -- Inside the test bbox (80.20-80.30, 13.00-13.10)
-insert into public.reports (category, location)
-values ('pothole', extensions.st_setsrid(extensions.st_makepoint(80.27, 13.06), 4326)::extensions.geography);
+insert into public.reports (category, location, gcc_status, gcc_complaint_number, gcc_road_name, landmark)
+values ('pothole', extensions.st_setsrid(extensions.st_makepoint(80.27, 13.06), 4326)::extensions.geography,
+        'submitted', '2026-48213', 'Arunachalam Street', 'Near Kauvery Hospital');
 
 -- Outside the test bbox
 insert into public.reports (category, location)
@@ -23,6 +24,13 @@ select is(
   (select count(*)::int from public.reports_in_bbox(80.20, 13.00, 80.30, 13.10, false)),
   1,
   'only the one open, non-hidden report inside the bbox is returned by default'
+);
+
+select is(
+  (select row(gcc_status::text, gcc_complaint_number, gcc_road_name, landmark)::text
+   from public.reports_in_bbox(80.20, 13.00, 80.30, 13.10, false)),
+  row('submitted', '2026-48213', 'Arunachalam Street', 'Near Kauvery Hospital')::text,
+  'map pins carry the GCC status, complaint number, street and landmark'
 );
 
 select is(

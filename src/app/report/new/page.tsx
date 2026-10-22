@@ -5,12 +5,15 @@ import Link from 'next/link';
 import { CategoryPicker } from '@/components/report/CategoryPicker';
 import { PhotoCapture, type CapturedPhoto } from '@/components/report/PhotoCapture';
 import { LocationPicker } from '@/components/report/LocationPicker';
+import { LocationDetails } from '@/components/report/LocationDetails';
+import { useGccStreets } from '@/lib/gcc/useGccStreets';
 import { ReportStepContact } from '@/components/report/ReportStepContact';
 import { DuplicateList } from '@/components/report/DuplicateList';
 import {
   validateReportDraft,
   validateReporterContact,
   type ReportCategory,
+  type ReporterGender,
   type ReportSubtype,
 } from '@/lib/report/validation';
 import { getBrowserClient } from '@/lib/supabase/browser';
@@ -54,9 +57,11 @@ export default function NewReportPage() {
   const [note, setNote] = useState('');
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [location, setLocation] = useState<{ lng: number; lat: number } | null>(null);
+  const gccStreets = useGccStreets(location);
   const [confirmedNotDuplicate, setConfirmedNotDuplicate] = useState(false);
   const [reporterName, setReporterName] = useState('');
   const [reporterPhone, setReporterPhone] = useState('');
+  const [reporterGender, setReporterGender] = useState<ReporterGender | null>(null);
   // Below lg the form is two steps in a fixed bottom panel; at lg+ every field shows at once.
   const [step, setStep] = useState<'details' | 'duplicates' | 'contact'>('details');
   const [showStepErrors, setShowStepErrors] = useState(false);
@@ -105,12 +110,14 @@ export default function NewReportPage() {
         note,
         photoCount: photos.length,
         hasLocation: location !== null,
+        inServiceArea: gccStreets.status !== 'outside',
+        hasStreet: gccStreets.selected !== null,
       }),
-    [category, subtype, note, photos.length, location]
+    [category, subtype, note, photos.length, location, gccStreets.status, gccStreets.selected]
   );
   const contactErrors = useMemo(
-    () => validateReporterContact({ name: reporterName, phone: reporterPhone }),
-    [reporterName, reporterPhone]
+    () => validateReporterContact({ name: reporterName, phone: reporterPhone, gender: reporterGender }),
+    [reporterName, reporterPhone, reporterGender]
   );
 
   function handleNext() {
@@ -123,7 +130,8 @@ export default function NewReportPage() {
   }
 
   async function handleSubmit() {
-    if (draftErrors.length > 0 || contactErrors.length > 0 || !location || !userId) return;
+    const street = gccStreets.selected;
+    if (draftErrors.length > 0 || contactErrors.length > 0 || !location || !userId || !street || !reporterGender) return;
     setSubmitting(true);
     setErrorMessage(null);
     try {
@@ -155,6 +163,12 @@ export default function NewReportPage() {
         p_photo_blurred: photos.map((photo) => photo.blurred),
         p_reporter_name: reporterName.trim(),
         p_reporter_phone: reporterPhone.trim(),
+        p_gender: reporterGender,
+        p_gcc_street_id: street.roadId,
+        p_gcc_road_name: street.roadName,
+        p_gcc_zone: (street.zone ?? null) as string,
+        p_gcc_ward: (street.ward ?? null) as string,
+        p_landmark: (gccStreets.landmark.trim() || null) as string,
       });
 
       if (error) {
@@ -190,7 +204,7 @@ export default function NewReportPage() {
         className="relative shrink-0 lg:h-full"
         style={isLargeScreen ? { width: `${100 - indexPanePercent}%` } : { height: `${mapHeightPercent}%` }}
       >
-        <LocationPicker onChange={setLocation} />
+        <LocationPicker value={location} onChange={setLocation} />
       </div>
       {isLargeScreen && (
         <div
@@ -259,6 +273,16 @@ export default function NewReportPage() {
           <>
             {showDetails && (
               <>
+                <LocationDetails
+                  location={location}
+                  status={gccStreets.status}
+                  streets={gccStreets.streets}
+                  selectedRoadId={gccStreets.selected?.roadId ?? null}
+                  landmark={gccStreets.landmark}
+                  onSelectStreet={gccStreets.selectStreet}
+                  onChangeLandmark={gccStreets.setLandmark}
+                  onRetry={gccStreets.retry}
+                />
                 <CategoryPicker
                   category={category}
                   subtype={subtype}
@@ -305,8 +329,10 @@ export default function NewReportPage() {
               <ReportStepContact
                 name={reporterName}
                 phone={reporterPhone}
+                gender={reporterGender}
                 onChangeName={setReporterName}
                 onChangePhone={setReporterPhone}
+                onChangeGender={setReporterGender}
               />
             )}
             {((showStepErrors && showDetails && !isLargeScreen) || isLargeScreen || step === 'contact') &&
@@ -315,6 +341,7 @@ export default function NewReportPage() {
                   {(showDetails || isLargeScreen) && draftErrors.map((code) => <li key={code}>{t(`report.errors.${code}`)}</li>)}
                   {showContact && contactErrors.includes('NAME_REQUIRED') && <li>{t('report.contact.nameRequired')}</li>}
                   {showContact && contactErrors.includes('PHONE_INVALID') && <li>{t('report.contact.phoneInvalid')}</li>}
+                  {showContact && contactErrors.includes('GENDER_REQUIRED') && <li>{t('report.contact.genderRequired')}</li>}
                 </ul>
               )}
             {/* Distinct from draftErrors above: this covers the case where local validation

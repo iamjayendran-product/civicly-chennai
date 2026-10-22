@@ -3,14 +3,14 @@
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CMDA_CENTER } from '@/lib/geo/cmda';
+import { GCC_CENTER } from '@/lib/geo/serviceArea';
 import { configureMaplibreWorker } from '@/lib/map/setupWorker';
 import { getMapStyle } from '@/lib/map/styles';
 
 configureMaplibreWorker();
 
 const SPACE_VIEW = { center: [78.5, 18] as [number, number], zoom: 0.7 };
-const CHENNAI = { center: [CMDA_CENTER.lng, CMDA_CENTER.lat] as [number, number], zoom: 11 };
+const CHENNAI = { center: [GCC_CENTER.lng, GCC_CENTER.lat] as [number, number], zoom: 11 };
 const INTRO_DELAY_MS = 700;
 const FLY_DURATION_MS = 7000;
 

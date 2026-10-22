@@ -6,20 +6,22 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { CMDA_MAX_BOUNDS, boundsToBboxParams, padBounds } from '@/lib/geo/cmda';
+import { GCC_MAX_BOUNDS, boundsToBboxParams, padBounds } from '@/lib/geo/serviceArea';
 import { useReports, type ReportPin } from '@/lib/realtime/useReports';
 import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
 import { LocationSearch } from './LocationSearch';
 import { Legend } from './Legend';
-import { MapStyleSwitcher } from './MapStyleSwitcher';
+import { MapSatelliteToggle } from './MapSatelliteToggle';
+import { StreetView } from './StreetView';
 import { getMapStyle } from '@/lib/map/styles';
-import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
+import { loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
 import { addStandardControls } from '@/lib/map/standardControls';
 import { fitCameraToPins } from '@/lib/map/fitPins';
 import { DROP_DURATION_MS, dropDelayMs, dropState } from '@/lib/map/dropAnimation';
 import { registerReportIcons, reportIconId } from '@/lib/map/reportIcons';
+import { addServiceAreaOverlay } from '@/lib/map/serviceAreaOverlay';
 import { configureMaplibreWorker } from '@/lib/map/setupWorker';
 import { t } from '@/lib/i18n';
 import type { Database } from '@/lib/supabase/database.types';
@@ -91,7 +93,7 @@ export function MapView() {
     router.replace('/home', { scroll: false });
   }, [reports, focusReportId, router]);
 
-  const { appearance, changeStyle, toggle3d } = useMapAppearance(mapRef);
+  const { appearance, changeStyle } = useMapAppearance(mapRef);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -99,18 +101,20 @@ export function MapView() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: getMapStyle(saved.styleId).style,
-      pitch: saved.is3d ? PITCH_3D : 0,
-      bearing: saved.is3d ? BEARING_3D : 0,
-      // Opens fitted to the whole CMDA extent rather than a fixed zoom level, so the
+      pitch: 0,
+      bearing: 0,
+      // Opens fitted to the whole GCC extent rather than a fixed zoom level, so the
       // initial view always shows exactly the area `maxBounds` clamps panning to.
-      bounds: CMDA_MAX_BOUNDS,
-      // A margin around the CMDA box (see padBounds) so the camera can pull back far
+      bounds: GCC_MAX_BOUNDS,
+      // A margin around the GCC box (see padBounds) so the camera can pull back far
       // enough to frame every pin even in a tilted 3D view on a phone.
-      maxBounds: padBounds(CMDA_MAX_BOUNDS, clampMarginFor(containerRef.current.clientHeight)),
+      maxBounds: padBounds(GCC_MAX_BOUNDS, clampMarginFor(containerRef.current.clientHeight)),
     });
     mapRef.current = map;
-    // Same controls as every other map in the app (see standardControls.ts).
+    // Same controls as every other map in the app (see standardControls.ts), plus
+    // fullscreen like GCC's map. Bottom-left, because the filter/search header covers the top.
     addStandardControls(map);
+    map.addControl(new maplibregl.FullscreenControl(), 'bottom-left');
 
     function updateBboxFromMap() {
       setBbox(boundsToBboxParams(map.getBounds()));
@@ -120,6 +124,8 @@ export function MapView() {
     // setStyle(), which wipes images, sources and layers — so the report layer is
     // re-added here each time the basemap changes.
     map.on('style.load', () => {
+      // Under the pins: dims everything outside GCC limits.
+      addServiceAreaOverlay(map);
       registerReportIcons(map);
       map.addSource(SOURCE_ID, {
         type: 'geojson',
@@ -181,7 +187,7 @@ export function MapView() {
     // Rotating the phone or resizing the window changes the visible area: re-frame the
     // pins so they all stay on screen.
     map.on('resize', () => {
-      map.setMaxBounds(padBounds(CMDA_MAX_BOUNDS, clampMarginFor(map.getContainer().clientHeight)));
+      map.setMaxBounds(padBounds(GCC_MAX_BOUNDS, clampMarginFor(map.getContainer().clientHeight)));
       if (userMovedRef.current || pinPointsRef.current.length === 0) return;
       fitCameraToPins(map, pinPointsRef.current, headerRef.current?.offsetHeight ?? 0);
     });
@@ -285,12 +291,8 @@ export function MapView() {
           corner (bottom-right) and can grow taller than its collapsed button on first
           load, before the user's first drag collapses it — this clears that. */}
       <div className="absolute bottom-16 right-2 z-10 flex flex-col items-end gap-2">
-        <MapStyleSwitcher
-          value={appearance.styleId}
-          onChange={changeStyle}
-          is3d={appearance.is3d}
-          onToggle3d={toggle3d}
-        />
+        <StreetView mapRef={mapRef} />
+        <MapSatelliteToggle value={appearance.styleId} onChange={changeStyle} />
         <Legend />
       </div>
       <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />

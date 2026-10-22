@@ -34,6 +34,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          email: string
+        }
+        Insert: {
+          email: string
+        }
+        Update: {
+          email?: string
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          key: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       cmda_boundary: {
         Row: {
           geom: unknown
@@ -49,78 +76,70 @@ export type Database = {
         }
         Relationships: []
       }
-      gcc_filing_events: {
+      gcc_boundary: {
         Row: {
-          actor: string
-          complaint_id: string
-          created_at: string
+          geom: unknown
           id: number
-          note: string | null
-          report_id: string
-          status: Database["public"]["Enums"]["gcc_status"]
         }
         Insert: {
-          actor: string
-          complaint_id: string
-          created_at?: string
+          geom: unknown
           id?: number
-          note?: string | null
-          report_id: string
-          status: Database["public"]["Enums"]["gcc_status"]
         }
         Update: {
-          actor?: string
-          complaint_id?: string
-          created_at?: string
+          geom?: unknown
           id?: number
-          note?: string | null
-          report_id?: string
-          status?: Database["public"]["Enums"]["gcc_status"]
         }
-        Relationships: [
-          {
-            foreignKeyName: "gcc_filing_events_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "reports"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      gcc_filings: {
+      gcc_submissions: {
         Row: {
-          complaint_id: string
-          filed_at: string
-          filed_by: string
-          note: string | null
+          attempts: number
+          blocked_at: string | null
+          blocked_by: string | null
+          blocked_reason: string | null
+          claimed_at: string | null
+          complaint_number: string | null
+          created_at: string
+          gender: string
+          last_error: string | null
+          next_attempt_at: string
           report_id: string
           status: Database["public"]["Enums"]["gcc_status"]
-          updated_at: string
-          updated_by: string
+          submitted_at: string | null
         }
         Insert: {
-          complaint_id: string
-          filed_at?: string
-          filed_by: string
-          note?: string | null
+          attempts?: number
+          blocked_at?: string | null
+          blocked_by?: string | null
+          blocked_reason?: string | null
+          claimed_at?: string | null
+          complaint_number?: string | null
+          created_at?: string
+          gender: string
+          last_error?: string | null
+          next_attempt_at: string
           report_id: string
           status?: Database["public"]["Enums"]["gcc_status"]
-          updated_at?: string
-          updated_by: string
+          submitted_at?: string | null
         }
         Update: {
-          complaint_id?: string
-          filed_at?: string
-          filed_by?: string
-          note?: string | null
+          attempts?: number
+          blocked_at?: string | null
+          blocked_by?: string | null
+          blocked_reason?: string | null
+          claimed_at?: string | null
+          complaint_number?: string | null
+          created_at?: string
+          gender?: string
+          last_error?: string | null
+          next_attempt_at?: string
           report_id?: string
           status?: Database["public"]["Enums"]["gcc_status"]
-          updated_at?: string
-          updated_by?: string
+          submitted_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "gcc_filings_report_id_fkey"
+            foreignKeyName: "gcc_submissions_report_id_fkey"
             columns: ["report_id"]
             isOneToOne: true
             referencedRelation: "reports"
@@ -249,8 +268,15 @@ export type Database = {
           fix_confirm_count: number
           fixed_at: string | null
           flag_count: number
+          gcc_complaint_number: string | null
+          gcc_road_name: string | null
+          gcc_status: Database["public"]["Enums"]["gcc_status"] | null
+          gcc_street_id: string | null
+          gcc_ward: string | null
+          gcc_zone: string | null
           id: string
           is_hidden: boolean
+          landmark: string | null
           lat: number | null
           lng: number | null
           location: unknown
@@ -266,8 +292,15 @@ export type Database = {
           fix_confirm_count?: number
           fixed_at?: string | null
           flag_count?: number
+          gcc_complaint_number?: string | null
+          gcc_road_name?: string | null
+          gcc_status?: Database["public"]["Enums"]["gcc_status"] | null
+          gcc_street_id?: string | null
+          gcc_ward?: string | null
+          gcc_zone?: string | null
           id?: string
           is_hidden?: boolean
+          landmark?: string | null
           lat?: number | null
           lng?: number | null
           location: unknown
@@ -283,8 +316,15 @@ export type Database = {
           fix_confirm_count?: number
           fixed_at?: string | null
           flag_count?: number
+          gcc_complaint_number?: string | null
+          gcc_road_name?: string | null
+          gcc_status?: Database["public"]["Enums"]["gcc_status"] | null
+          gcc_street_id?: string | null
+          gcc_ward?: string | null
+          gcc_zone?: string | null
           id?: string
           is_hidden?: boolean
+          landmark?: string | null
           lat?: number | null
           lng?: number | null
           location?: unknown
@@ -301,71 +341,102 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      admin_gcc_counts: {
-        Args: never
+      admin_check_reason: { Args: { p_reason: string }; Returns: undefined }
+      admin_flag_reports: {
+        Args: { p_reason?: string; p_report_ids: string[] }
         Returns: {
-          filed: number
-          unfiled: number
+          already_filed: boolean
+          complaint_number: string
+          report_id: string
         }[]
       }
-      admin_gcc_history: {
-        Args: { p_report_id: string }
-        Returns: {
-          complaint_id: string
-          created_at: string
-          note: string
-          status: Database["public"]["Enums"]["gcc_status"]
-        }[]
-      }
-      admin_gcc_queue: {
+      admin_list_reports: {
         Args: {
           p_before?: string
+          p_filter?: string
           p_limit?: number
-          p_status?: Database["public"]["Enums"]["gcc_status"]
-          p_tab: string
+          p_search?: string
+          p_ward?: string
         }
         Returns: {
+          attempts: number
+          blocked_reason: string
           category: Database["public"]["Enums"]["report_category"]
-          complaint_id: string
+          complaint_number: string
           created_at: string
-          filed_at: string
-          filing_updated_at: string
-          gcc_note: string
+          gcc_road_name: string
           gcc_status: Database["public"]["Enums"]["gcc_status"]
+          gcc_street_id: string
+          gcc_ward: string
+          gcc_zone: string
+          gender: string
           id: string
+          is_hidden: boolean
+          landmark: string
+          last_error: string
           lat: number
           lng: number
+          next_attempt_at: string
           note: string
           photo_paths: string[]
           reporter_name: string
           reporter_phone: string
-          sort_key: string
+          reporter_report_count: number
+          status: Database["public"]["Enums"]["report_status"]
           subtype: Database["public"]["Enums"]["report_subtype"]
           upvote_count: number
         }[]
       }
-      admin_save_gcc_filing: {
-        Args: {
-          p_complaint_id: string
-          p_note?: string
-          p_report_id: string
-          p_status?: Database["public"]["Enums"]["gcc_status"]
-        }
+      admin_reporter_reports: {
+        Args: { p_report_id: string }
         Returns: {
-          complaint_id: string
-          duplicate_of: string[]
-          filed_at: string
-          note: string
-          report_id: string
-          status: Database["public"]["Enums"]["gcc_status"]
-          updated_at: string
+          category: Database["public"]["Enums"]["report_category"]
+          created_at: string
+          gcc_status: Database["public"]["Enums"]["gcc_status"]
+          id: string
+          is_hidden: boolean
+          subtype: Database["public"]["Enums"]["report_subtype"]
         }[]
       }
-      admin_whoami: { Args: never; Returns: boolean }
+      admin_require: { Args: never; Returns: undefined }
+      admin_retry_gcc: { Args: { p_report_id: string }; Returns: undefined }
+      admin_set_flag_reason: {
+        Args: { p_reason: string; p_report_id: string }
+        Returns: undefined
+      }
+      admin_unflag_reports: {
+        Args: { p_report_ids: string[] }
+        Returns: undefined
+      }
+      claim_gcc_submissions: {
+        Args: { p_limit: number }
+        Returns: {
+          category: Database["public"]["Enums"]["report_category"]
+          gcc_road_name: string
+          gcc_street_id: string
+          gcc_ward: string
+          gcc_zone: string
+          gender: string
+          landmark: string
+          lat: number
+          lng: number
+          note: string
+          photo_path: string
+          report_id: string
+          reporter_name: string
+          subtype: Database["public"]["Enums"]["report_subtype"]
+        }[]
+      }
       confirm_same_issue: { Args: { p_report_id: string }; Returns: undefined }
       create_report: {
         Args: {
           p_category: Database["public"]["Enums"]["report_category"]
+          p_gcc_road_name?: string
+          p_gcc_street_id?: string
+          p_gcc_ward?: string
+          p_gcc_zone?: string
+          p_gender?: string
+          p_landmark?: string
           p_lat: number
           p_lng: number
           p_note: string
@@ -392,6 +463,14 @@ export type Database = {
           upvote_count: number
         }[]
       }
+      record_gcc_result: {
+        Args: {
+          p_complaint_number: string
+          p_error: string
+          p_report_id: string
+        }
+        Returns: undefined
+      }
       reports_in_bbox: {
         Args: {
           p_include_fixed?: boolean
@@ -403,7 +482,11 @@ export type Database = {
         Returns: {
           category: Database["public"]["Enums"]["report_category"]
           created_at: string
+          gcc_complaint_number: string
+          gcc_road_name: string
+          gcc_status: Database["public"]["Enums"]["gcc_status"]
           id: string
+          landmark: string
           lat: number
           lng: number
           note: string
@@ -412,17 +495,10 @@ export type Database = {
           upvote_count: number
         }[]
       }
+      trigger_gcc_forward: { Args: never; Returns: undefined }
     }
     Enums: {
-      gcc_status:
-        | "registered"
-        | "forwarded"
-        | "processing"
-        | "completed"
-        | "rejected"
-        | "reopened"
-        | "withdrawn"
-        | "not_completed"
+      gcc_status: "pending" | "in_flight" | "submitted" | "failed" | "blocked"
       report_category: "pothole" | "waterlogging" | "other"
       report_status: "open" | "fixed"
       report_subtype:
@@ -563,16 +639,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      gcc_status: [
-        "registered",
-        "forwarded",
-        "processing",
-        "completed",
-        "rejected",
-        "reopened",
-        "withdrawn",
-        "not_completed",
-      ],
+      gcc_status: ["pending", "in_flight", "submitted", "failed", "blocked"],
       report_category: ["pothole", "waterlogging", "other"],
       report_status: ["open", "fixed"],
       report_subtype: [

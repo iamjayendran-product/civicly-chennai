@@ -20,10 +20,13 @@
     "@mediapipe/tasks-vision": "^1.0.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "mapillary-js": "4.1.2",
     "maplibre-gl": "6.10.0",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

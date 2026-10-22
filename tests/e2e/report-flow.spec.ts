@@ -25,6 +25,9 @@ async function createTestReport(lng: number, lat: number): Promise<string> {
     p_lng: lng,
     p_lat: lat,
     p_photo_paths: [`${userId}/e2e-test.jpg`],
+    // Required since reports are filed with GCC (gender + a GCC street id).
+    p_gender: "female",
+    p_gcc_street_id: "7553",
   });
   if (error || !data) {
     throw new Error(`create_report failed: ${error?.message}`);

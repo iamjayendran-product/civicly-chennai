@@ -1,6 +1,7 @@
 import type { StyleSpecification } from 'maplibre-gl';
 
-export type MapStyleId = 'light' | 'dark' | 'terrain' | 'satellite';
+// The same two views as GCC's complaint-form map: Map and Satellite.
+export type MapStyleId = 'light' | 'satellite';
 
 export interface MapStyleOption {
   id: MapStyleId;
@@ -28,16 +29,6 @@ function rasterStyle(tiles: string[], attribution: string, maxzoom: number): Sty
 
 export const MAP_STYLES: MapStyleOption[] = [
   { id: 'light', labelKey: 'map.style.light', style: LIGHT_STYLE_URL },
-  { id: 'dark', labelKey: 'map.style.dark', style: 'https://tiles.openfreemap.org/styles/dark' },
-  {
-    id: 'terrain',
-    labelKey: 'map.style.terrain',
-    style: rasterStyle(
-      ['a', 'b', 'c'].map((s) => `https://${s}.tile.opentopomap.org/{z}/{x}/{y}.png`),
-      '© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)',
-      17
-    ),
-  },
   {
     id: 'satellite',
     labelKey: 'map.style.satellite',
@@ -49,7 +40,7 @@ export const MAP_STYLES: MapStyleOption[] = [
   },
 ];
 
-// Product decision (2026-10-02): maps open in satellite + 3D unless the citizen chose otherwise.
+// Product decision (2026-10-02): maps open in satellite unless the citizen chose otherwise.
 export const DEFAULT_MAP_STYLE_ID: MapStyleId = 'satellite';
 
 export function getMapStyle(id: string | null | undefined): MapStyleOption {

@@ -12,7 +12,7 @@ export function t(key: MessageKey, vars?: Record<string, string | number>): stri
   return message;
 }
 
-const RPC_ERROR_CODES = ['OUTSIDE_CMDA', 'RATE_LIMITED', 'INVALID_PHOTOS', 'INVALID_INPUT', 'AUTH_REQUIRED'] as const;
+const RPC_ERROR_CODES = ['OUTSIDE_GCC', 'RATE_LIMITED', 'INVALID_PHOTOS', 'INVALID_INPUT', 'AUTH_REQUIRED'] as const;
 
 export function errorCodeToMessage(code: string): string {
   const known = (RPC_ERROR_CODES as readonly string[]).includes(code);

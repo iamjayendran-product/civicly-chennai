@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { BEARING_3D, PITCH_3D, loadAppearance, saveAppearance, type MapAppearance } from './appearance';
+import { loadAppearance, saveAppearance, type MapAppearance } from './appearance';
 import { DEFAULT_MAP_STYLE_ID, getMapStyle, type MapStyleId } from './styles';
 
-/** Owns the basemap-view + 3D state for one map and applies changes to it. Pair it
- * with `loadAppearance()` when constructing the map so it opens in the saved view. */
+/** Owns the basemap view for one map and applies changes to it. Pair it with
+ * `loadAppearance()` when constructing the map so it opens in the saved view. */
 export function useMapAppearance(mapRef: RefObject<MapLibreMap | null>) {
-  const [appearance, setAppearance] = useState<MapAppearance>({ styleId: DEFAULT_MAP_STYLE_ID, is3d: true });
+  const [appearance, setAppearance] = useState<MapAppearance>({ styleId: DEFAULT_MAP_STYLE_ID });
 
   useEffect(() => {
     // Deferred a tick (same pattern as elsewhere in the app) to satisfy the rule
@@ -19,7 +19,7 @@ export function useMapAppearance(mapRef: RefObject<MapLibreMap | null>) {
 
   const changeStyle = useCallback(
     (styleId: MapStyleId) => {
-      setAppearance((a) => ({ ...a, styleId }));
+      setAppearance({ styleId });
       saveAppearance({ styleId });
       // diff: false forces a full rebuild so 'style.load' always fires and callers can
       // re-add their own layers/images (a diffed update could silently drop them).
@@ -28,14 +28,5 @@ export function useMapAppearance(mapRef: RefObject<MapLibreMap | null>) {
     [mapRef]
   );
 
-  const toggle3d = useCallback(
-    (is3d: boolean) => {
-      setAppearance((a) => ({ ...a, is3d }));
-      saveAppearance({ is3d });
-      mapRef.current?.easeTo({ pitch: is3d ? PITCH_3D : 0, bearing: is3d ? BEARING_3D : 0, duration: 900 });
-    },
-    [mapRef]
-  );
-
-  return { appearance, changeStyle, toggle3d };
+  return { appearance, changeStyle };
 }

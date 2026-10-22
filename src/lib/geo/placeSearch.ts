@@ -1,4 +1,4 @@
-import { CMDA_BBOX } from './cmda';
+import { GCC_BBOX } from './serviceArea';
 
 // Nominatim's usage policy (https://operations.osmfoundation.org/policies/nominatim/)
 // discourages heavy direct client-side use and asks for an identifying User-Agent or
@@ -13,7 +13,7 @@ export function buildNominatimSearchUrl(query: string): string {
     format: 'json',
     q: query,
     // left,top,right,bottom — i.e. minLng,maxLat,maxLng,minLat.
-    viewbox: `${CMDA_BBOX.minLng},${CMDA_BBOX.maxLat},${CMDA_BBOX.maxLng},${CMDA_BBOX.minLat}`,
+    viewbox: `${GCC_BBOX.minLng},${GCC_BBOX.maxLat},${GCC_BBOX.maxLng},${GCC_BBOX.minLat}`,
     bounded: '1',
     countrycodes: 'in',
     limit: '5',

@@ -2,10 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { buildNominatimSearchUrl, parseNominatimResults, type PlaceResult } from '@/lib/geo/placeSearch';
+import { searchRoads, type GccStreet } from '@/lib/gcc/streetLookup';
 import { t } from '@/lib/i18n';
 
 const MIN_QUERY_LENGTH = 3;
 const DEBOUNCE_MS = 400;
+
+function streetToPlace(street: GccStreet): PlaceResult {
+  const area = [street.ward && `Ward ${street.ward}`, street.zone && `Zone ${street.zone}`].filter(Boolean).join(', ');
+  return { ...street.anchor, label: area ? `${street.roadName} — ${area}` : street.roadName };
+}
 
 export interface LocationSearchProps {
   onSelect: (place: PlaceResult) => void;
@@ -36,13 +42,16 @@ export function LocationSearch({ onSelect, className }: LocationSearchProps) {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
-      fetch(buildNominatimSearchUrl(query), { signal: controller.signal })
+      // GCC's own street register first (the same search GCC's complaint form offers),
+      // then general places from Nominatim. Either source failing just contributes nothing.
+      const places = fetch(buildNominatimSearchUrl(query), { signal: controller.signal })
         .then((response) => (response.ok ? response.json() : []))
-        .then((data) => setResults(parseNominatimResults(data)))
-        .catch(() => {
-          // A stale request being aborted is expected and not an error worth surfacing;
-          // a genuine network failure just leaves the results list empty.
-        });
+        .then(parseNominatimResults)
+        .catch(() => [] as PlaceResult[]);
+      Promise.all([searchRoads(query), places]).then(([streets, nominatim]) => {
+        if (controller.signal.aborted) return;
+        setResults([...streets.map(streetToPlace), ...nominatim]);
+      });
     }, DEBOUNCE_MS);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -68,7 +77,7 @@ export function LocationSearch({ onSelect, className }: LocationSearchProps) {
       {results.length > 0 && (
         <ul className="absolute z-10 mt-1 w-full rounded-xl border border-line bg-surface text-sm shadow-lg">
           {results.map((result) => (
-            <li key={`${result.lng},${result.lat}`}>
+            <li key={`${result.label}|${result.lng},${result.lat}`}>
               <button
                 type="button"
                 onClick={() => handleSelect(result)}

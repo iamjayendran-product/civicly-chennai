@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import type { BboxParams } from '@/lib/geo/cmda';
+import type { BboxParams } from '@/lib/geo/serviceArea';
 import type { Database } from '@/lib/supabase/database.types';
 
 type Category = Database['public']['Enums']['report_category'];
 type Subtype = Database['public']['Enums']['report_subtype'];
 type Status = Database['public']['Enums']['report_status'];
+type GccStatus = Database['public']['Enums']['gcc_status'];
 
 export interface ReportPin {
   id: string;
@@ -19,6 +20,9 @@ export interface ReportPin {
   status: Status;
   upvoteCount: number;
   createdAt: string;
+  /** Where the report stands with GCC's grievance system (null: never queued). */
+  gccStatus: GccStatus | null;
+  gccComplaintNumber: string | null;
 }
 
 interface BboxRow {
@@ -31,6 +35,8 @@ interface BboxRow {
   status: Status;
   upvote_count: number;
   created_at: string;
+  gcc_status?: GccStatus | null;
+  gcc_complaint_number?: string | null;
 }
 
 interface RealtimeReportRow extends BboxRow {
@@ -48,6 +54,8 @@ function bboxRowToPin(row: BboxRow): ReportPin {
     status: row.status,
     upvoteCount: row.upvote_count,
     createdAt: row.created_at,
+    gccStatus: row.gcc_status ?? null,
+    gccComplaintNumber: row.gcc_complaint_number ?? null,
   };
 }
 
@@ -120,9 +128,27 @@ export function useReports(bbox: BboxParams | null, includeFixed: boolean) {
       })
       .subscribe();
 
+    // An admin flag hides a report, but RLS stops postgres_changes from delivering that
+    // UPDATE (the hidden row is no longer readable), so admin_flag_reports also broadcasts
+    // the id on this public topic.
+    const moderation = supabase
+      .channel('reports-moderation')
+      .on('broadcast', { event: 'report_hidden' }, (message: { payload?: { id?: string } }) => {
+        const id = message.payload?.id;
+        if (!id) return;
+        setReports((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        });
+      })
+      .subscribe();
+
     return () => {
       cancelled = true;
       supabase.removeChannel(channel);
+      supabase.removeChannel(moderation);
     };
   }, [bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, includeFixed, bbox]);
 
