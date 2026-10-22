@@ -168,5 +168,7 @@
   "admin.delete": "Delete",
   "admin.deleteConfirm": "Delete this report? It will be removed from the public map and this queue.",
   "admin.deleted": "Report deleted",
-  "map.style.view3d": "3D"
+  "map.style.view3d": "3D",
+  "map.style.dark": "Dark",
+  "map.style.theme": "Map theme"
 }

@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { MAP_STYLES, DEFAULT_MAP_STYLE_ID, getMapStyle } from './styles';
 
 describe('map styles', () => {
-  it('offers the same two views as GCC’s map: Map (light) and Satellite', () => {
-    expect(MAP_STYLES.map((s) => s.id)).toEqual(['light', 'satellite']);
+  it('offers Map in a light or dark theme, and Satellite', () => {
+    expect(MAP_STYLES.map((s) => s.id)).toEqual(['light', 'dark', 'satellite']);
+  });
+
+  it('opens in the light Map view by default', () => {
+    expect(DEFAULT_MAP_STYLE_ID).toBe('light');
   });
 
   it('falls back to the default for views that are no longer offered', () => {
-    expect(getMapStyle('dark').id).toBe(DEFAULT_MAP_STYLE_ID);
     expect(getMapStyle('terrain').id).toBe(DEFAULT_MAP_STYLE_ID);
   });
 

@@ -39,6 +39,26 @@ describe('MapSatelliteToggle', () => {
     expect(onToggle3d).toHaveBeenCalledWith(false);
   });
 
+  it('keeps Map pressed in the dark theme', () => {
+    render(<MapSatelliteToggle value="dark" onChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: t('map.style.map') })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('offers Light and Dark only in the Map view', () => {
+    const { rerender } = render(<MapSatelliteToggle value="light" onChange={vi.fn()} />);
+    expect(screen.getByRole('button', { name: t('map.style.light') })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: t('map.style.dark') })).toHaveAttribute('aria-pressed', 'false');
+    rerender(<MapSatelliteToggle value="satellite" onChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: t('map.style.dark') })).not.toBeInTheDocument();
+  });
+
+  it('switches the map to the dark theme', () => {
+    const onChange = vi.fn();
+    render(<MapSatelliteToggle value="light" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: t('map.style.dark') }));
+    expect(onChange).toHaveBeenCalledWith('dark');
+  });
+
   it('marks Map pressed for the street map', () => {
     render(<MapSatelliteToggle value="light" onChange={vi.fn()} />);
     expect(screen.getByRole('button', { name: t('map.style.map') })).toHaveAttribute('aria-pressed', 'true');
