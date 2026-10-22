@@ -12,10 +12,16 @@ vi.mock('@/lib/admin/gccApi', async (importOriginal) => ({
 }));
 
 // The card is tested on its own; here it only needs to expose its row and onSaved.
+const signOut = vi.fn().mockResolvedValue({ error: null });
+const replace = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace }) }));
+vi.mock('@/lib/supabase/browser', () => ({ getBrowserClient: () => ({ auth: { signOut } }) }));
+
 vi.mock('./GccReportCard', () => ({
-  GccReportCard: ({ row, onSaved }: { row: QueueRow; onSaved: (r: QueueRow, i: { duplicateOf: string[] }) => void }) => (
+  GccReportCard: ({ row, onSaved, onDeleted }: { row: QueueRow; onSaved: (r: QueueRow, i: { duplicateOf: string[] }) => void; onDeleted: (r: QueueRow) => void }) => (
     <div data-testid="card">
       {row.id}
+      <button onClick={() => onDeleted(row)}>delete-{row.id}</button>
       <button onClick={() => onSaved({ ...row, complaint_id: '2026-736JEJ', gcc_status: 'registered' }, { duplicateOf: [] })}>
         save-{row.id}
       </button>
@@ -46,7 +52,7 @@ function makeRow(i: number): QueueRow {
   return {
     id: `r${i}`, category: 'pothole', subtype: null, note: null, lng: 80.27, lat: 13.06,
     created_at: ts, upvote_count: 0, reporter_name: null, reporter_phone: null, photo_paths: [],
-    complaint_id: null, gcc_status: null, gcc_note: null, filed_at: null, filing_updated_at: null, sort_key: ts,
+    complaint_id: null, gcc_status: null, gcc_note: null, filed_at: null, filing_updated_at: null, sort_key: ts, reporter_gender: null, gcc_street_id: null, gcc_road_name: null, gcc_zone: null, gcc_ward: null, landmark: null,
   };
 }
 
@@ -143,6 +149,23 @@ describe('GccQueue', () => {
     render(<GccQueue />);
     expect(await screen.findByTestId('card')).toBeInTheDocument();
     expect(screen.queryByTestId('table')).not.toBeInTheDocument();
+  });
+
+  it('removes a deleted report and refreshes the counts', async () => {
+    queue.mockResolvedValue([makeRow(1), makeRow(2)]);
+    render(<GccQueue />);
+    fireEvent.click(await screen.findByRole('button', { name: 'delete-r1' }));
+    await waitFor(() => expect(screen.queryByText('r1')).not.toBeInTheDocument());
+    expect(screen.getByText(t('admin.deleted'))).toBeInTheDocument();
+    expect(counts).toHaveBeenCalledTimes(2);
+  });
+
+  it('signs out', async () => {
+    queue.mockResolvedValue([]);
+    render(<GccQueue />);
+    fireEvent.click(await screen.findByRole('button', { name: t('admin.signOut') }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/admin/login'));
+    expect(signOut).toHaveBeenCalled();
   });
 
   it('says when there is nothing left to file', async () => {

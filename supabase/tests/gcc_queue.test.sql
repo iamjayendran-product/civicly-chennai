@@ -1,7 +1,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(17);
+select plan(19);
 
 -- Start from an empty reports table (rolled back at the end) so local demo data
 -- can't change counts or ordering.
@@ -25,9 +25,13 @@ insert into public.reports (id, category, note, location, created_at, upvote_cou
   ('00000000-0000-0000-0000-0000000000b2', 'pothole', 'X',  extensions.st_setsrid(extensions.st_makepoint(80.27, 13.06), 4326)::extensions.geography, now(), 0, false, 'fixed'),
   ('00000000-0000-0000-0000-0000000000b3', 'pothole', 'FX', extensions.st_setsrid(extensions.st_makepoint(80.27, 13.06), 4326)::extensions.geography, now(), 0, false, 'fixed');
 
-insert into public.report_contacts (report_id, name, phone) values
-  ('00000000-0000-0000-0000-0000000000a1', 'Priya', '9876543210'),
-  ('00000000-0000-0000-0000-0000000000a3', 'Arun', '9123456780');
+update public.reports
+   set gcc_street_id = '7553', gcc_road_name = 'Arunachalam Street', gcc_zone = '10', gcc_ward = '128', landmark = 'Near Kauvery Hospital'
+ where id = '00000000-0000-0000-0000-0000000000a1';
+
+insert into public.report_contacts (report_id, name, phone, gender) values
+  ('00000000-0000-0000-0000-0000000000a1', 'Priya', '9876543210', 'female'),
+  ('00000000-0000-0000-0000-0000000000a3', 'Arun', '9123456780', 'male');
 
 insert into public.report_photos (report_id, storage_path, kind, uploaded_by, created_at) values
   ('00000000-0000-0000-0000-0000000000a3', 'bbbbbbbb-0000-0000-0000-000000000002/one.jpg', 'report', 'bbbbbbbb-0000-0000-0000-000000000002', now() - interval '2 minutes'),
@@ -85,6 +89,18 @@ select is(
   (select upvote_count from public.admin_gcc_queue('unfiled') where id = '00000000-0000-0000-0000-0000000000a3'),
   14,
   'the +1 count is included'
+);
+
+select is(
+  (select reporter_gender from public.admin_gcc_queue('unfiled') where id = '00000000-0000-0000-0000-0000000000a1'),
+  'female',
+  'the reporter gender is included (GCC form needs it)'
+);
+select is(
+  (select row(gcc_street_id, gcc_road_name, gcc_zone, gcc_ward, landmark)::text
+     from public.admin_gcc_queue('unfiled') where id = '00000000-0000-0000-0000-0000000000a1'),
+  row('7553', 'Arunachalam Street', '10', '128', 'Near Kauvery Hospital')::text,
+  'the GCC street, zone, ward and landmark are included'
 );
 
 -- Filed tab.

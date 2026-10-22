@@ -154,5 +154,18 @@
   "admin.login.send": "Email me a sign-in link",
   "admin.login.sending": "Sending…",
   "admin.login.sent": "If that email is an admin, a sign-in link is on its way. Open it on this device.",
-  "admin.login.failed": "Couldn't send the link. Try again in a minute."
+  "admin.login.failed": "Couldn't send the link. Try again in a minute.",
+  "admin.card.street": "{{road}} (ID {{id}})",
+  "admin.card.wardZone": "Ward {{ward}} · Zone {{zone}}",
+  "admin.card.gccType": "GCC type",
+  "admin.copyText.gccType": "GCC type: {{value}}",
+  "admin.copyText.street": "Street: {{value}}",
+  "admin.copyText.landmark": "Landmark: {{value}}",
+  "admin.copyText.location": "Location: {{coords}} — {{link}}",
+  "admin.copyText.name": "Name: {{value}}",
+  "admin.copyText.phone": "Phone: {{value}}",
+  "admin.copyText.gender": "Gender: {{value}}",
+  "admin.delete": "Delete",
+  "admin.deleteConfirm": "Delete this report? It will be removed from the public map and this queue.",
+  "admin.deleted": "Report deleted"
 }

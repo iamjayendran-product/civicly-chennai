@@ -4,11 +4,11 @@ import { Fragment, useState } from 'react';
 import { t } from '@/lib/i18n';
 import { getBrowserClient } from '@/lib/supabase/browser';
 import { GCC_STATUSES, type GccStatus, type QueueRow } from '@/lib/admin/gccApi';
-import { formatAll, formatCoords, formatDescription, mapsUrl } from '@/lib/admin/formatForGcc';
+import { formatAll, formatCoords, formatDescription, formatGccType, formatGender, formatStreet, formatWardZone, mapsUrl } from '@/lib/admin/formatForGcc';
 import { formatRelative, formatShortDate } from '@/lib/admin/dates';
 import { CopyButton } from './CopyButton';
 import { FilingFeedback } from './GccFilingForm';
-import { useGccFiling, type OnSaved } from './useGccFiling';
+import { useGccFiling, type OnDeleted, type OnSaved } from './useGccFiling';
 
 // Wide-screen layout of the GCC queue: one compact row per report. Fixed column widths
 // and wrapping text keep it inside the viewport; less-used details (big photos,
@@ -18,8 +18,9 @@ const cell = 'px-3 py-2 align-top break-words';
 const smallInput = 'w-full rounded-md border border-line bg-background px-2 py-1 text-sm';
 const smallPrimary = 'rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-50';
 const smallSecondary = 'rounded-full border border-line px-3 py-1 text-xs';
+const smallDanger = 'rounded-full border border-red-600/50 px-3 py-1 text-xs text-red-600 disabled:opacity-50';
 
-export function GccTable({ rows, onSaved }: { rows: QueueRow[]; onSaved: OnSaved }) {
+export function GccTable({ rows, onSaved, onDeleted }: { rows: QueueRow[]; onSaved: OnSaved; onDeleted: OnDeleted }) {
   return (
     <table className="w-full table-fixed border-collapse text-sm">
       <colgroup>
@@ -40,15 +41,15 @@ export function GccTable({ rows, onSaved }: { rows: QueueRow[]; onSaved: OnSaved
       </thead>
       <tbody>
         {rows.map((row) => (
-          <GccTableRow key={row.id} row={row} onSaved={onSaved} />
+          <GccTableRow key={row.id} row={row} onSaved={onSaved} onDeleted={onDeleted} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function GccTableRow({ row, onSaved }: { row: QueueRow; onSaved: OnSaved }) {
-  const f = useGccFiling(row, onSaved);
+function GccTableRow({ row, onSaved, onDeleted }: { row: QueueRow; onSaved: OnSaved; onDeleted: OnDeleted }) {
+  const f = useGccFiling(row, onSaved, onDeleted);
   const [expanded, setExpanded] = useState(false);
   const storage = getBrowserClient().storage.from('report-photos');
   const photoUrls = row.photo_paths.map((p) => storage.getPublicUrl(p).data.publicUrl);
@@ -68,6 +69,9 @@ function GccTableRow({ row, onSaved }: { row: QueueRow; onSaved: OnSaved }) {
             )}
             <div className="min-w-0">
               <p className="line-clamp-2 font-medium">{description}</p>
+              <p className="line-clamp-1 text-xs text-muted" title={t('admin.card.gccType')}>
+                {formatGccType(row)}
+              </p>
               <p className="text-xs text-muted">
                 {formatRelative(row.created_at)}
                 {row.upvote_count > 0 && (
@@ -81,6 +85,9 @@ function GccTableRow({ row, onSaved }: { row: QueueRow; onSaved: OnSaved }) {
           </div>
         </td>
         <td className={cell}>
+          <p className="text-xs font-medium">{formatStreet(row)}</p>
+          <p className="text-xs text-muted">{formatWardZone(row)}</p>
+          {row.landmark && <p className="text-xs text-muted">{row.landmark}</p>}
           <p className="text-xs">{coords}</p>
           <a href={maps} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
             {t('admin.table.map')}
@@ -89,6 +96,7 @@ function GccTableRow({ row, onSaved }: { row: QueueRow; onSaved: OnSaved }) {
         <td className={cell}>
           <p>{row.reporter_name ?? dash}</p>
           <p className="text-xs text-muted">{row.reporter_phone ?? dash}</p>
+          <p className="text-xs text-muted">{formatGender(row)}</p>
         </td>
         <td className={cell}>
           {f.editing ? (
@@ -150,6 +158,9 @@ function GccTableRow({ row, onSaved }: { row: QueueRow; onSaved: OnSaved }) {
               </button>
             )}
             <CopyButton text={formatAll(row, maps)} label={t('admin.copy.all')} />
+            <button type="button" disabled={f.saving} onClick={() => void f.remove()} className={smallDanger}>
+              {t('admin.delete')}
+            </button>
             <button
               type="button"
               aria-expanded={expanded}

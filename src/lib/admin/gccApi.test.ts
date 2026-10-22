@@ -67,10 +67,11 @@ describe('gccApi.queue', () => {
   });
 });
 
-describe('gccApi.whoami', () => {
-  it('returns false instead of throwing when the call fails', async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: 'network' } });
-    await expect(gccApi.whoami()).resolves.toBe(false);
+describe('gccApi.deleteReport', () => {
+  it('calls the admin delete RPC for the report', async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    await gccApi.deleteReport('r1');
+    expect(rpc).toHaveBeenCalledWith('admin_delete_report', { p_report_id: 'r1' });
   });
 });
 

@@ -2,12 +2,13 @@
 
 import { t } from '@/lib/i18n';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import { formatAll, formatCoords, formatDescription, mapsUrl } from '@/lib/admin/formatForGcc';
+import { formatAll, formatCoords, formatDescription, formatGccType, formatGender, formatStreet, formatWardZone, mapsUrl } from '@/lib/admin/formatForGcc';
 import { formatRelative } from '@/lib/admin/dates';
 import { CopyButton } from './CopyButton';
 import { GccFilingForm, type GccFilingFormProps } from './GccFilingForm';
+import type { OnDeleted } from './useGccFiling';
 
-export function GccReportCard({ row, onSaved }: GccFilingFormProps) {
+export function GccReportCard({ row, onSaved, onDeleted }: GccFilingFormProps & { onDeleted: OnDeleted }) {
   const storage = getBrowserClient().storage.from('report-photos');
   const maps = mapsUrl(row.lat, row.lng);
   const description = formatDescription(row);
@@ -31,6 +32,7 @@ export function GccReportCard({ row, onSaved }: GccFilingFormProps) {
       )}
 
       <h2 className="text-base font-semibold">{description}</h2>
+      <p className="text-xs text-muted">{formatGccType(row)}</p>
       <p className="mt-1 text-xs text-muted">
         {t('admin.card.reported', { when: formatRelative(row.created_at) })}
         {row.upvote_count > 0 && (
@@ -49,8 +51,15 @@ export function GccReportCard({ row, onSaved }: GccFilingFormProps) {
             {t('admin.card.openMaps')}
           </a>
         </dd>
+        <dt className="text-muted">🛣️</dt>
+        <dd>
+          {formatStreet(row)} · {formatWardZone(row)}
+          {row.landmark && <> · {row.landmark}</>}
+        </dd>
         <dt className="text-muted">👤</dt>
-        <dd>{row.reporter_name ?? dash}</dd>
+        <dd>
+          {row.reporter_name ?? dash} · <span>{formatGender(row)}</span>
+        </dd>
         <dt className="text-muted">📞</dt>
         <dd>{row.reporter_phone ?? dash}</dd>
       </dl>
@@ -64,7 +73,7 @@ export function GccReportCard({ row, onSaved }: GccFilingFormProps) {
         {row.reporter_phone && <CopyButton text={row.reporter_phone} label={t('admin.copy.phone')} />}
       </div>
 
-      <GccFilingForm row={row} onSaved={onSaved} />
+      <GccFilingForm row={row} onSaved={onSaved} onDeleted={onDeleted} />
     </article>
   );
 }

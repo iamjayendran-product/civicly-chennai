@@ -107,26 +107,7 @@ describe('useReports', () => {
     expect(result.current.reports.map((r) => r.id)).toContain('r4');
   });
 
-  it('carries each report’s GCC status and complaint number, from the snapshot and from realtime', async () => {
-    rpc.mockResolvedValue({
-      data: [
-        { id: 'g1', category: 'pothole', subtype: null, note: null, lng: 80.25, lat: 13.05, status: 'open', upvote_count: 0, created_at: '2026-01-01T00:00:00Z', gcc_status: 'pending', gcc_complaint_number: null },
-      ],
-      error: null,
-    });
-    const { result } = renderHook(() => useReports(bbox, false));
-    await waitFor(() => expect(result.current.status).toBe('live'));
-    expect(result.current.reports[0]).toMatchObject({ gccStatus: 'pending', gccComplaintNumber: null });
-
-    act(() => {
-      updateHandler({
-        new: { id: 'g1', category: 'pothole', subtype: null, note: null, lng: 80.25, lat: 13.05, status: 'open', is_hidden: false, upvote_count: 0, created_at: '2026-01-01T00:00:00Z', gcc_status: 'submitted', gcc_complaint_number: '2026-48213' },
-      });
-    });
-    expect(result.current.reports[0]).toMatchObject({ gccStatus: 'submitted', gccComplaintNumber: '2026-48213' });
-  });
-
-  it('removes a pin when an admin flags the report (moderation broadcast)', async () => {
+  it('removes a pin when an admin deletes the report (moderation broadcast)', async () => {
     rpc.mockResolvedValue({
       data: [
         { id: 'm1', category: 'pothole', subtype: null, note: null, lng: 80.25, lat: 13.05, status: 'open', upvote_count: 0, created_at: '2026-01-01T00:00:00Z' },

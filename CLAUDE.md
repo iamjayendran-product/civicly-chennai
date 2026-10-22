@@ -54,8 +54,8 @@ local Supabase, or point `.env.local` at a hosted Supabase dev project.
    then applies Realtime `INSERT`/`UPDATE` events on `reports`. No polling.
 4. **GCC only.** Any location outside the GCC limits polygon is rejected server-side
    (`OUTSIDE_GCC`). The client clamps the map to the GCC extent and requires a GCC street.
-   Forwarding to GCC runs only through the `gcc_submissions` queue and `/api/gcc/forward`
-   (service role); never call GCC's API from anywhere else.
+   Nothing calls GCC's API: the admin files complaints by hand on GCC's portal and records
+   the complaint ID in the `/admin` GCC filing log (`gcc_filings`).
 5. **Privacy by default.** Photos are resized, EXIF-stripped (re-encode) and
    face/plate-blurred on-device before upload. Never store raw IPs — only salted
    hashes. Never show reporter identity on reports.
@@ -80,7 +80,7 @@ that screen, official accounts, video, native apps, phone OTP, SMS/email notific
   new one. Name: `YYYYMMDDHHMMSS_short_description.sql`.
 - Regenerate DB types after every migration change and commit them.
 - Secrets only in `.env.local` (git-ignored). `SUPABASE_SERVICE_ROLE_KEY`,
-  `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET` and `GCC_FORWARD_SECRET` must never be
+  `VAPID_PRIVATE_KEY` and `PUSH_WEBHOOK_SECRET` must never be
   imported into client components.
 - Keep files small and single-purpose; see the structure in spec §6.
 - Commit messages: imperative mood, e.g. `Add create_report RPC with CMDA check`.

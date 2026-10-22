@@ -8,7 +8,6 @@ import type { Database } from '@/lib/supabase/database.types';
 type Category = Database['public']['Enums']['report_category'];
 type Subtype = Database['public']['Enums']['report_subtype'];
 type Status = Database['public']['Enums']['report_status'];
-type GccStatus = Database['public']['Enums']['gcc_status'];
 
 export interface ReportPin {
   id: string;
@@ -20,9 +19,6 @@ export interface ReportPin {
   status: Status;
   upvoteCount: number;
   createdAt: string;
-  /** Where the report stands with GCC's grievance system (null: never queued). */
-  gccStatus: GccStatus | null;
-  gccComplaintNumber: string | null;
 }
 
 interface BboxRow {
@@ -35,8 +31,6 @@ interface BboxRow {
   status: Status;
   upvote_count: number;
   created_at: string;
-  gcc_status?: GccStatus | null;
-  gcc_complaint_number?: string | null;
 }
 
 interface RealtimeReportRow extends BboxRow {
@@ -54,8 +48,6 @@ function bboxRowToPin(row: BboxRow): ReportPin {
     status: row.status,
     upvoteCount: row.upvote_count,
     createdAt: row.created_at,
-    gccStatus: row.gcc_status ?? null,
-    gccComplaintNumber: row.gcc_complaint_number ?? null,
   };
 }
 

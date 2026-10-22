@@ -173,55 +173,31 @@ Web Push via VAPID. Signed-in users opt in on the report success screen or My Re
 A Supabase Database Webhook on `reports` status → `fixed` calls a Next.js route
 `/api/push/report-fixed` which sends to the reporter's subscriptions (secret-authenticated).
 
-### 4.7 GCC forwarding (added 2026-10-15)
+### 4.7 GCC filing (replaced 2026-10-22)
 
-Every report is filed as a complaint in Greater Chennai Corporation's Public Grievance
-Redressal system (`https://gccservices.in/pgr/registercomplaints`) — the same API GCC's
-own form calls: `POST /pgr/api/register`, form-encoded. There is no CAPTCHA, and with
-"share mobile" and "share email" both **No** there is no OTP, so Civicly files
-**without the reporter's mobile or email**. GCC returns a complaint number, which is
-shown on the report.
+The automatic forwarder added on 2026-10-15 (pg_cron → `/api/gcc/forward` → GCC's PGR
+register API, with a 2-hour hold) was **removed on 2026-10-22** before it ever sent a
+complaint. Reports are now filed with GCC **by hand** by the single admin, who records the
+GCC complaint ID, status and note in the GCC filing log. Full design:
+`2026-10-21-gcc-filing-admin-design.md`. The GCC category mapping in
+`src/lib/gcc/categoryMap.ts` is kept and shown to the admin as the GCC complaint type to
+pick: pothole → Road and Footpath › *Pot hole fill up / Repairs to the damaged surface*
+(112); waterlogging → Water Stagnation › *Stagnation of Water* (138); other/open_manhole →
+143; damaged_footpath → 115; dug_up_road → 113; debris → Garbage › 99; speed_breaker,
+signage, other → 112.
 
-- **Hold:** each report waits `app_settings.gcc_hold` (default **2 hours**) so an admin
-  can flag it (§4.8). Then it is sent if still open, not hidden and not flagged.
-- **Sender:** `pg_cron` every 5 minutes → `trigger_gcc_forward()` → `POST
-  {SITE_URL}/api/gcc/forward` with a shared secret (both read from Vault:
-  `gcc_forward_url`, `gcc_forward_secret`). The route claims up to 5 due reports
-  (`claim_gcc_submissions`, `for update skip locked`), files them one at a time with a
-  pause between, and records each outcome (`record_gcc_result`). Kill switch:
-  `GCC_FORWARDING_ENABLED`.
-- **Retries:** backoff 5 min, 30 min, 2 h, 12 h; failed after the 5th attempt (an admin
-  can retry). An in-flight claim older than 15 minutes is reclaimed.
-- **Fields sent:** ComplainantName (reporter's name, else "Anonymous (via Civicly
-  Chennai)"), ComplainantAddr + StreetId (the GCC street), Landmark, latitude/longtitude,
-  gender, ComplaintType/ComplaintTitle (mapped below), ComplaintDetails (category, note,
-  street/ward/zone, landmark, photo link, link to the live report), Comp_Image (the first
-  photo as a JPEG data URL under 1 MB). If GCC rejects a submission with an image, it is
-  retried once without it (GCC's own form sends no image).
-- **Category mapping** (from `getComplaintCategories`): pothole → Road and Footpath ›
-  *Pot hole fill up / Repairs to the damaged surface* (112); waterlogging → Water
-  Stagnation › *Stagnation of Water* (138); other/open_manhole → 143; damaged_footpath →
-  115; dug_up_road → 113; debris → Garbage › 99; speed_breaker, signage, other → 112.
-- **Risk:** this is an undocumented GCC endpoint used without a formal agreement; it may
-  change or block us. Mitigations: hold + admin review, low volume, never re-sending a
-  filed report, honest User-Agent, kill switch. Approved access from GCC is being sought.
+### 4.8 Admin (replaced 2026-10-22)
 
-### 4.8 Admin review (added 2026-10-15)
-
-`/admin`, for allowlisted admins (`admin_users`; signed in by **email magic link**,
-`shouldCreateUser: false`; `is_admin()` requires a non-anonymous user with a confirmed,
-allowlisted email). A table of every report: photo, category, reporter name with their
-report count, phone, ward, GCC status (countdown / number / flag reason / failed). A row
-expands to photos, note, street/landmark, gender, a map link, the reporter's other
-reports and the GCC error with **Retry**. Filters: Pending send (default), Flagged, Filed,
-Failed, All; ward filter; search by name/phone/note/street.
-
-**Flag** (one click, or bulk): hides the report from the public map *and* blocks its GCC
-send; a toast offers **Undo** (re-queued no sooner than 10 minutes later) and an optional
-reason (spam, duplicate, not a road issue, abusive photo, other). Flagging a report GCC
-has already filed only hides it, and says so. Open maps drop the pin via a Realtime
-broadcast (`reports-moderation` / `report_hidden`), since RLS stops `postgres_changes`
-delivering an UPDATE that hides a row. Reporter details are only ever shown here.
+`/admin` is the GCC filing log (see the design doc). It's for the single hard-coded admin,
+signed in by **email magic link** (`/admin/login` → `/admin/auth/callback`,
+`shouldCreateUser: false`); `is_admin()` requires that email *and* a magic-link session.
+It's an Unfiled / Filed queue of open, visible reports: a table on wide screens, cards on
+phones. Each report shows its photo, issue and GCC complaint type, GCC street (ID), ward,
+zone, landmark, coordinates and map link, and the reporter's name, phone and gender, with
+copy buttons. Actions are record or edit the GCC complaint ID, status and note (with
+history), and **Delete**. Delete is a soft delete: it hides the report from the public map
+and the queue, and open maps drop the pin via the `reports-moderation` / `report_hidden`
+Realtime broadcast. Reporter details are only ever shown here.
 
 ### 4.9 Location step, GCC-style (added 2026-10-15)
 
@@ -328,10 +304,8 @@ create index on rate_events (ip_hash, action, created_at desc);
 
 | Function | Auth | Purpose |
 |---|---|---|
-| `create_report(category, subtype, note, lng, lat, photo_paths text[], …, gender, gcc_street_id, gcc_road_name, gcc_zone, gcc_ward, landmark)` | any session | Validate, GCC boundary check, rate-limit, insert report + photos, queue a `gcc_submissions` row, log rate event. Returns report id. |
-| `claim_gcc_submissions(limit)` / `record_gcc_result(report_id, complaint_number, error)` | service_role | GCC forwarding queue (§4.7). |
-| `is_admin()`, `admin_list_reports`, `admin_reporter_reports`, `admin_flag_reports`, `admin_set_flag_reason`, `admin_unflag_reports`, `admin_retry_gcc` | admin | Admin review (§4.8); each raises `AUTH_REQUIRED` unless `is_admin()`. |
-| `reports_in_bbox(min_lng, min_lat, max_lng, max_lat, include_fixed bool)` | public | Non-hidden reports in viewport (capped at 2,000), with GCC status/number, street and landmark. |
+| `create_report(category, subtype, note, lng, lat, photo_paths text[], …, gender, gcc_street_id, gcc_road_name, gcc_zone, gcc_ward, landmark)` | any session | Validate, GCC boundary check, rate-limit, insert report + photos + contact (name, phone, gender), log rate event. Returns report id. |
+| `reports_in_bbox(min_lng, min_lat, max_lng, max_lat, include_fixed bool)` | public | Non-hidden reports in viewport (capped at 2,000), with GCC street and landmark. |
 | `nearby_reports(lng, lat, category, radius_m default 25)` | public | Open, non-hidden duplicates candidate list. |
 | `vote(report_id, kind)` | non-anonymous | Insert vote, bump counter, apply flag-hide threshold. |
 | `confirm_fixed(report_id, photo_path)` | non-anonymous | Insert confirmation, apply fixed threshold. |
@@ -342,15 +316,16 @@ create index on rate_events (ip_hash, action, created_at desc);
 
 **GCC filing log (amended 2026-10-21; see `2026-10-21-gcc-filing-admin-design.md`).**
 Admin-only RPCs, each gated by `is_admin()` (non-anonymous JWT whose email is the single
-hard-coded admin, `iamjayendran@gmail.com`):
+hard-coded admin, `iamjayendran@gmail.com`, from a magic-link session):
 
 | Function | Auth | Purpose |
 |---|---|---|
 | `is_admin()` / `admin_whoami()` | any | Whether the caller is the admin (never raises). |
-| `admin_gcc_queue(tab, status, limit, before)` | admin | Unfiled / Filed queue of open, visible reports with reporter contact, photo paths and filing fields. Keyset-paginated. |
+| `admin_gcc_queue(tab, status, limit, before)` | admin | Unfiled / Filed queue of open, visible reports with reporter contact (incl. gender), GCC street/zone/ward/landmark, photo paths and filing fields. Keyset-paginated. |
 | `admin_gcc_counts()` | admin | Tab counts. |
 | `admin_save_gcc_filing(report_id, complaint_id, status, note)` | admin | Upsert the GCC complaint ID / status / note, append history, return duplicates. |
 | `admin_gcc_history(report_id)` | admin | Filing history, oldest first. |
+| `admin_delete_report(report_id)` | admin | Soft delete: hide from the public map and the queue, broadcast `report_hidden`. |
 
 Tables `gcc_filings` (one row per filed report) and `gcc_filing_events` (append-only
 history) are default-deny: RLS on, no policies, no grants. Nothing about GCC filing is
@@ -398,8 +373,8 @@ src/
   lib/
     supabase/                # browser & server clients, generated types
     geo/                     # GCC service area (boundary, bbox), bbox helpers
-    gcc/                     # GCC street lookup, category map, forwarding (server-only parts)
-    admin/                   # admin RPC wrappers
+    gcc/                     # GCC street lookup, category map
+    admin/                   # GCC filing log: RPC wrappers, copy-text and date helpers
     images/                  # resize, blur (face/plate), encode pipeline
     realtime/                # useReportsChannel hook
     push/                    # web-push subscribe + server send
@@ -421,7 +396,7 @@ SQL.
 1. Client processes photos → uploads to `report-photos/{uid}/…`.
 2. Client calls `rpc('create_report', …)`.
 3. Function validates, checks `ST_Covers(gcc_boundary.geom, point)`, checks rate windows,
-   inserts `reports` + `report_photos` + `gcc_submissions` + `rate_events` in one transaction.
+   inserts `reports` + `report_photos` + `report_contacts` + `rate_events` in one transaction.
 4. Postgres WAL → Supabase Realtime → every subscribed client receives `INSERT`.
 5. Clients add the pin if it's within the current viewport/filter.
 
@@ -465,11 +440,10 @@ deleting storage objects older than 24 h with no `report_photos` row.
   `SUPABASE_SERVICE_ROLE_KEY` (server only), `NEXT_PUBLIC_MAP_STYLE_URL`,
   `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`,
   `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET`,
-  `NEXT_PUBLIC_MAPILLARY_TOKEN`, and (server only) `GCC_FORWARDING_ENABLED`,
-  `GCC_FORWARD_SECRET`, `GCC_BASE_URL`, `SITE_URL`.
-- Vault secrets: `gcc_forward_url` (`{SITE_URL}/api/gcc/forward`) and
-  `gcc_forward_secret` (= `GCC_FORWARD_SECRET`). Auth redirect URLs must include
-  `{SITE_URL}/admin/auth/callback`; the admin user is created once in the dashboard.
+  `NEXT_PUBLIC_MAPILLARY_TOKEN`.
+- Auth redirect URLs must include `{SITE_URL}/admin/auth/callback`; the admin user is
+  created once in the dashboard. (The 2026-10-15 forwarder's env vars and Vault secrets
+  `gcc_forward_url` / `gcc_forward_secret` are no longer used and can be deleted.)
 - Local dev: Supabase CLI via `npx supabase` + Docker Desktop, or a hosted dev project.
 - Supabase Auth settings: enable anonymous sign-ins, Google provider, Turnstile captcha,
   manual identity linking.

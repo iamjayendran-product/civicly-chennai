@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { t } from '@/lib/i18n';
 import { gccApi, GCC_STATUSES, type GccStatus, type QueueRow } from '@/lib/admin/gccApi';
 import { GccReportCard } from './GccReportCard';
 import { GccTable } from './GccTable';
+import { getBrowserClient } from '@/lib/supabase/browser';
 import { useMediaQuery } from './useMediaQuery';
 import type { SavedInfo } from './GccFilingForm';
 
@@ -29,6 +31,7 @@ export function GccQueue() {
   const [toast, setToast] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const router = useRouter();
   const wide = useMediaQuery('(min-width: 768px)');
   const loadingMore = useRef(false);
   const viewKey = `${tab}|${status ?? ''}|${reloadKey}`;
@@ -102,6 +105,17 @@ export function GccQueue() {
     refreshCounts();
   }
 
+  function handleDeleted(deleted: QueueRow) {
+    setRows((current) => (current ?? []).filter((r) => r.id !== deleted.id));
+    setToast(t('admin.deleted'));
+    refreshCounts();
+  }
+
+  async function signOut() {
+    await getBrowserClient().auth.signOut();
+    router.replace('/admin/login');
+  }
+
   const tabClass = (active: boolean) =>
     `flex-1 rounded-full px-3 py-2 text-sm font-semibold ${active ? 'bg-primary text-white' : 'bg-surface text-foreground'}`;
   const chipClass = (active: boolean) =>
@@ -111,9 +125,14 @@ export function GccQueue() {
     <div className={`mx-auto space-y-3 p-4 ${wide ? 'max-w-7xl' : 'max-w-xl'}`}>
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{t('admin.title')}</h1>
-        <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="text-sm text-primary">
-          {t('admin.refresh')}
-        </button>
+        <div className="flex gap-4">
+          <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="text-sm text-primary">
+            {t('admin.refresh')}
+          </button>
+          <button type="button" onClick={() => void signOut()} className="text-sm text-muted">
+            {t('admin.signOut')}
+          </button>
+        </div>
       </header>
 
       <div role="tablist" className={`flex gap-2 ${wide ? 'max-w-md' : ''}`}>
@@ -145,10 +164,10 @@ export function GccQueue() {
       )}
 
       {wide ? (
-        rows && rows.length > 0 && <GccTable rows={rows} onSaved={handleSaved} />
+        rows && rows.length > 0 && <GccTable rows={rows} onSaved={handleSaved} onDeleted={handleDeleted} />
       ) : (
         <div className="space-y-3">
-          {rows?.map((row) => <GccReportCard key={row.id} row={row} onSaved={handleSaved} />)}
+          {rows?.map((row) => <GccReportCard key={row.id} row={row} onSaved={handleSaved} onDeleted={handleDeleted} />)}
         </div>
       )}
 

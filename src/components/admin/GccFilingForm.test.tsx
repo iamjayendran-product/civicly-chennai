@@ -18,7 +18,7 @@ const unfiled: QueueRow = {
   id: 'r1', category: 'pothole', subtype: null, note: null, lng: 80.27, lat: 13.06,
   created_at: '2026-10-20T05:00:00Z', upvote_count: 0, reporter_name: null, reporter_phone: null,
   photo_paths: [], complaint_id: null, gcc_status: null, gcc_note: null, filed_at: null,
-  filing_updated_at: null, sort_key: '2026-10-20T05:00:00Z',
+  filing_updated_at: null, sort_key: '2026-10-20T05:00:00Z', reporter_gender: null, gcc_street_id: null, gcc_road_name: null, gcc_zone: null, gcc_ward: null, landmark: null,
 };
 const filed: QueueRow = {
   ...unfiled,

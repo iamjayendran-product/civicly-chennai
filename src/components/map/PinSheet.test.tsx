@@ -14,8 +14,6 @@ const base: ReportPin = {
   status: 'open',
   upvoteCount: 0,
   createdAt: '2026-10-15T00:00:00Z',
-  gccStatus: 'submitted',
-  gccComplaintNumber: '2026-48213',
 };
 
 describe('PinSheet', () => {

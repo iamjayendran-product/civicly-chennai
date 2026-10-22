@@ -3,6 +3,16 @@
 Date: 2026-10-21 · Status: draft for approval · Amends:
 `2026-09-21-chennai-road-grievance-mvp-design.md` (§1 Non-goals, §5, §6)
 
+> **Amended 2026-10-22 (merge with the live GCC service-area work):**
+> - Auto-forwarding from 2026-10-15 is removed (migration `20261021095000`).
+> - `/admin` keeps that work's server-side magic-link login (`/admin/login` →
+>   `/admin/auth/callback`) in place of §3's in-page email form.
+> - The queue also shows the reporter's gender and the GCC street (ID), ward, zone,
+>   landmark and GCC complaint type, all included in "Copy all".
+> - Each report has **Delete**: a soft delete that hides it from the public map, with a
+>   confirm step, replacing the old "Flag".
+> - There's a Sign out link.
+
 ## 1. Intent
 
 Jay (the only operator) files Civicly reports with the Greater Chennai Corporation

@@ -10,6 +10,7 @@ export interface SavedInfo {
 }
 
 export type OnSaved = (row: QueueRow, info: SavedInfo) => void;
+export type OnDeleted = (row: QueueRow) => void;
 
 function errorMessage(error: unknown): string {
   const code = error instanceof GccApiError ? error.code : 'UNKNOWN';
@@ -18,7 +19,7 @@ function errorMessage(error: unknown): string {
 
 // Form state and actions for recording / editing one report's GCC filing. Shared by the
 // phone card (GccFilingForm) and the wide-screen table row (GccTableRow).
-export function useGccFiling(row: QueueRow, onSaved: OnSaved) {
+export function useGccFiling(row: QueueRow, onSaved: OnSaved, onDeleted?: OnDeleted) {
   const isFiled = row.complaint_id !== null;
   const [editing, setEditing] = useState(!isFiled);
   const [complaintId, setComplaintId] = useState(row.complaint_id ?? '');
@@ -62,6 +63,20 @@ export function useGccFiling(row: QueueRow, onSaved: OnSaved) {
     }
   }
 
+  // Soft delete (hidden from the public map), after the admin confirms.
+  async function remove() {
+    if (saving || !window.confirm(t('admin.deleteConfirm'))) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await gccApi.deleteReport(row.id);
+      onDeleted?.(row);
+    } catch (err) {
+      setError(errorMessage(err));
+      setSaving(false);
+    }
+  }
+
   async function toggleHistory() {
     if (history) {
       setHistory(null);
@@ -78,6 +93,6 @@ export function useGccFiling(row: QueueRow, onSaved: OnSaved) {
     isFiled, editing, setEditing,
     complaintId, setComplaintId, status, setStatus, note, setNote,
     saving, error, duplicateCount, history,
-    showFormatWarning, canSave, save, toggleHistory,
+    showFormatWarning, canSave, save, remove, toggleHistory,
   };
 }

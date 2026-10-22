@@ -3,21 +3,23 @@
 import { t } from '@/lib/i18n';
 import { GCC_STATUSES, type GccStatus, type QueueRow } from '@/lib/admin/gccApi';
 import { formatShortDate } from '@/lib/admin/dates';
-import { useGccFiling, type OnSaved } from './useGccFiling';
+import { useGccFiling, type OnDeleted, type OnSaved } from './useGccFiling';
 
 export type { SavedInfo } from './useGccFiling';
 
 export interface GccFilingFormProps {
   row: QueueRow;
   onSaved: OnSaved;
+  onDeleted?: OnDeleted;
 }
 
 export const inputClass = 'mt-1 w-full rounded-lg border border-line bg-background px-3 py-2 text-sm';
 export const primaryButton = 'rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
 export const secondaryButton = 'rounded-full border border-line px-4 py-2 text-sm';
+export const dangerButton = 'rounded-full border border-red-600/50 px-4 py-2 text-sm text-red-600 disabled:opacity-50';
 
-export function GccFilingForm({ row, onSaved }: GccFilingFormProps) {
-  const f = useGccFiling(row, onSaved);
+export function GccFilingForm({ row, onSaved, onDeleted }: GccFilingFormProps) {
+  const f = useGccFiling(row, onSaved, onDeleted);
 
   return (
     <div className="mt-3 border-t border-line pt-3">
@@ -65,6 +67,11 @@ export function GccFilingForm({ row, onSaved }: GccFilingFormProps) {
                 {t('admin.form.cancel')}
               </button>
             )}
+            {onDeleted && !f.isFiled && (
+              <button type="button" disabled={f.saving} onClick={() => void f.remove()} className={dangerButton}>
+                {t('admin.delete')}
+              </button>
+            )}
           </div>
         </form>
       ) : (
@@ -83,6 +90,11 @@ export function GccFilingForm({ row, onSaved }: GccFilingFormProps) {
             <button type="button" onClick={f.toggleHistory} className={secondaryButton}>
               {t('admin.form.history')}
             </button>
+            {onDeleted && (
+              <button type="button" disabled={f.saving} onClick={() => void f.remove()} className={dangerButton}>
+                {t('admin.delete')}
+              </button>
+            )}
           </div>
         </div>
       )}
