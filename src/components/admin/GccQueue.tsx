@@ -1,0 +1,146 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { t } from '@/lib/i18n';
+import { gccApi, GCC_STATUSES, type GccStatus, type QueueRow } from '@/lib/admin/gccApi';
+import { GccReportCard } from './GccReportCard';
+import type { SavedInfo } from './GccFilingForm';
+
+type Tab = 'unfiled' | 'filed';
+
+// Matches admin_gcc_queue's default p_limit: a full page means there may be more.
+const PAGE_SIZE = 20;
+
+function queueArgs(tab: Tab, status: GccStatus | null, before?: string) {
+  const args: Parameters<typeof gccApi.queue>[0] = { tab };
+  if (tab === 'filed' && status) args.status = status;
+  if (before) args.before = before;
+  return args;
+}
+
+export function GccQueue() {
+  const [tab, setTab] = useState<Tab>('unfiled');
+  const [status, setStatus] = useState<GccStatus | null>(null);
+  const [rows, setRows] = useState<QueueRow[] | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [counts, setCounts] = useState<{ unfiled: number; filed: number } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const refreshCounts = useCallback(() => {
+    gccApi.counts().then(setCounts, () => setFailed(true));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    refreshCounts();
+    gccApi.queue(queueArgs(tab, status)).then(
+      (page) => {
+        if (cancelled) return;
+        setRows(page);
+        setHasMore(page.length === PAGE_SIZE);
+        setFailed(false);
+      },
+      () => !cancelled && setFailed(true),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, status, reloadKey, refreshCounts]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  function switchTab(next: Tab) {
+    if (next === tab) return;
+    setRows(null);
+    setStatus(null);
+    setTab(next);
+  }
+
+  async function loadMore() {
+    if (!rows || rows.length === 0) return;
+    try {
+      const page = await gccApi.queue(queueArgs(tab, status, rows[rows.length - 1].sort_key));
+      setRows([...rows, ...page]);
+      setHasMore(page.length === PAGE_SIZE);
+    } catch {
+      setFailed(true);
+    }
+  }
+
+  function handleSaved(saved: QueueRow, info: SavedInfo) {
+    setRows((current) =>
+      tab === 'unfiled'
+        ? (current ?? []).filter((r) => r.id !== saved.id)
+        : (current ?? []).map((r) => (r.id === saved.id ? saved : r)),
+    );
+    const message = t('admin.form.saved', { id: saved.complaint_id ?? '' });
+    setToast(info.duplicateOf.length > 0 ? `${message} · ${t('admin.form.duplicate', { count: info.duplicateOf.length })}` : message);
+    refreshCounts();
+  }
+
+  const tabClass = (active: boolean) =>
+    `flex-1 rounded-full px-3 py-2 text-sm font-semibold ${active ? 'bg-primary text-white' : 'bg-surface text-foreground'}`;
+  const chipClass = (active: boolean) =>
+    `shrink-0 rounded-full border px-3 py-1 text-xs ${active ? 'border-primary bg-primary/10 text-primary' : 'border-line text-muted'}`;
+
+  return (
+    <div className="mx-auto max-w-xl space-y-3 p-4">
+      <header className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">{t('admin.title')}</h1>
+        <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="text-sm text-primary">
+          {t('admin.refresh')}
+        </button>
+      </header>
+
+      <div role="tablist" className="flex gap-2">
+        <button role="tab" aria-selected={tab === 'unfiled'} onClick={() => switchTab('unfiled')} className={tabClass(tab === 'unfiled')}>
+          {t('admin.tab.unfiled', { count: counts?.unfiled ?? '…' })}
+        </button>
+        <button role="tab" aria-selected={tab === 'filed'} onClick={() => switchTab('filed')} className={tabClass(tab === 'filed')}>
+          {t('admin.tab.filed', { count: counts?.filed ?? '…' })}
+        </button>
+      </div>
+
+      {tab === 'filed' && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button type="button" aria-pressed={status === null} onClick={() => setStatus(null)} className={chipClass(status === null)}>
+            {t('admin.filter.all')}
+          </button>
+          {GCC_STATUSES.map((s) => (
+            <button key={s} type="button" aria-pressed={status === s} onClick={() => setStatus(s)} className={chipClass(status === s)}>
+              {t(`admin.gccStatus.${s}`)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {failed && <p role="alert" className="text-sm text-red-600">{t('admin.errors.UNKNOWN')}</p>}
+
+      {rows?.length === 0 && (
+        <p className="py-8 text-center text-sm text-muted">{t(tab === 'unfiled' ? 'admin.empty.unfiled' : 'admin.empty.filed')}</p>
+      )}
+
+      <div className="space-y-3">
+        {rows?.map((row) => <GccReportCard key={row.id} row={row} onSaved={handleSaved} />)}
+      </div>
+
+      {hasMore && (
+        <button type="button" onClick={loadMore} className="w-full rounded-full border border-line py-2 text-sm">
+          {t('admin.loadMore')}
+        </button>
+      )}
+
+      {toast && (
+        <div role="status" className="fixed inset-x-4 bottom-4 mx-auto max-w-md rounded-full bg-foreground px-4 py-2 text-center text-sm text-background shadow-lg">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
