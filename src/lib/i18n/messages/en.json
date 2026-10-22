@@ -167,5 +167,6 @@
   "admin.copyText.gender": "Gender: {{value}}",
   "admin.delete": "Delete",
   "admin.deleteConfirm": "Delete this report? It will be removed from the public map and this queue.",
-  "admin.deleted": "Report deleted"
+  "admin.deleted": "Report deleted",
+  "map.style.view3d": "3D"
 }

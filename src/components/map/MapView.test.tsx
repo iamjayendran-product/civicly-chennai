@@ -19,6 +19,7 @@ vi.mock('maplibre-gl', () => {
       addImage: vi.fn(),
       addSource: vi.fn(),
       addLayer: vi.fn(),
+      easeTo: vi.fn(),
     };
   });
   const NavigationControl = vi.fn().mockImplementation(function () {
@@ -63,6 +64,25 @@ describe('MapView initial viewport', () => {
     expect(options).not.toHaveProperty('zoom');
   });
 
+  it('opens in a tilted 3D view by default', () => {
+    render(<MapView />);
+
+    const MapCtor = maplibregl.Map as unknown as ReturnType<typeof vi.fn>;
+    const options = MapCtor.mock.calls.at(-1)![0] as Record<string, unknown>;
+    expect(options.pitch).toBe(60);
+    expect(options.bearing).toBe(-20);
+    expect(screen.getByRole('button', { name: t('map.style.view3d') })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('flattens to 2D when 3D is switched off', () => {
+    render(<MapView />);
+
+    const MapCtor = maplibregl.Map as unknown as ReturnType<typeof vi.fn>;
+    const mapInstance = MapCtor.mock.results.at(-1)!.value as { easeTo: ReturnType<typeof vi.fn> };
+    screen.getByRole('button', { name: t('map.style.view3d') }).click();
+    expect(mapInstance.easeTo).toHaveBeenCalledWith(expect.objectContaining({ pitch: 0, bearing: 0 }));
+  });
+
   it('adds a geolocate control alongside the navigation control, bottom-left', () => {
     render(<MapView />);
 
@@ -89,11 +109,8 @@ describe('MapView initial viewport', () => {
     expect(layerIds).toContain(SERVICE_AREA_MASK_LAYER_ID);
   });
 
-  it('opens flat and offers GCC’s Map | Satellite switch instead of the view menu', () => {
+  it('offers GCC’s Map | Satellite switch instead of the view menu', () => {
     render(<MapView />);
-    const MapCtor = maplibregl.Map as unknown as ReturnType<typeof vi.fn>;
-    const options = MapCtor.mock.calls.at(-1)![0] as Record<string, unknown>;
-    expect(options.pitch).toBe(0);
     expect(screen.getAllByRole('button', { name: t('map.style.satellite') }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: t('map.style.title') })).not.toBeInTheDocument();
   });

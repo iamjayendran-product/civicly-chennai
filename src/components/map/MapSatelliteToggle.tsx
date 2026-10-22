@@ -6,10 +6,13 @@ import type { MapStyleId } from '@/lib/map/styles';
 export interface MapSatelliteToggleProps {
   value: MapStyleId;
   onChange: (id: MapStyleId) => void;
+  /** Pass both to add a 3D (tilted view) button after Map | Satellite. */
+  is3d?: boolean;
+  onToggle3d?: (is3d: boolean) => void;
 }
 
 /** The "Map | Satellite" switch from GCC's complaint form, top-left of every map. */
-export function MapSatelliteToggle({ value, onChange }: MapSatelliteToggleProps) {
+export function MapSatelliteToggle({ value, onChange, is3d, onToggle3d }: MapSatelliteToggleProps) {
   const isSatellite = value === 'satellite';
   const options: { id: MapStyleId; label: string; pressed: boolean }[] = [
     { id: 'light', label: t('map.style.map'), pressed: !isSatellite },
@@ -28,6 +31,16 @@ export function MapSatelliteToggle({ value, onChange }: MapSatelliteToggleProps)
           {option.label}
         </button>
       ))}
+      {onToggle3d && (
+        <button
+          type="button"
+          aria-pressed={Boolean(is3d)}
+          onClick={() => onToggle3d(!is3d)}
+          className={`border-l border-neutral-200 px-3 py-1.5 ${is3d ? 'font-semibold text-black' : 'text-neutral-500 hover:bg-neutral-100'}`}
+        >
+          {t('map.style.view3d')}
+        </button>
+      )}
     </div>
   );
 }

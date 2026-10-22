@@ -137,9 +137,13 @@ with a two-step form: (1) category, note, photo; (2) name and phone.
 - Pin style by status: **open** = red, **fixed** = grey. Filter chips per category and
   "show fixed".
 - Basemap views (2026-10-15, matching GCC's complaint-form map): a **Map | Satellite**
-  switch (Satellite default), fullscreen and a street-view button (§4.9). The 3D toggle
-  and the Dark/Terrain views were removed. The choice is remembered per device and shared,
-  with the same zoom/compass/locate controls, by the Discovery map and the report form's map.
+  switch (Satellite default), fullscreen and a street-view button (§4.9). The Dark/Terrain
+  views were removed. The choice is remembered per device and shared, with the same
+  zoom/compass/locate controls, by the Discovery map and the report form's map.
+- **3D (re-added 2026-10-22):** the Discovery map (`/home`) always opens in a tilted 3D
+  view (pitch 60°, bearing −20°). A **3D** button next to Map | Satellite flattens it for
+  that visit only; the choice isn't remembered. Re-framing the pins keeps the rotation.
+  The report form's map stays flat (2D), which is easier for placing a pin.
 - Citizen-facing screens never mention GCC or the filing (product decision, 2026-10-15):
   no notice on the form, no status on the pin sheet or success screen. GCC status and
   complaint numbers are shown only on the admin screen (§4.8).

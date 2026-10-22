@@ -94,7 +94,8 @@ export function fitCameraToPins(map: MapLibreMap, points: { lng: number; lat: nu
   // Rough placement first (also sets a sensible zoom), then the measured refinement.
   const bounds = new maplibregl.LngLatBounds();
   for (const point of points) bounds.extend([point.lng, point.lat]);
-  map.fitBounds(bounds as LngLatBoundsLike, { padding, maxZoom: 14, duration: 0 });
+  // Keep the current rotation: fitBounds would otherwise reset bearing to north-up.
+  map.fitBounds(bounds as LngLatBoundsLike, { padding, maxZoom: 14, duration: 0, bearing: map.getBearing() });
   fitPinsInView(
     {
       size: { width: container.clientWidth, height: container.clientHeight },

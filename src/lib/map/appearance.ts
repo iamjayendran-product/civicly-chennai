@@ -4,6 +4,10 @@ import { DEFAULT_MAP_STYLE_ID, getMapStyle, type MapStyleId } from './styles';
 // report form's location picker — so a citizen's choice follows them from page to page.
 const STYLE_KEY = 'civicly-map-style';
 
+// The tilted 3D camera the Discovery map (/home) opens in.
+export const PITCH_3D = 60;
+export const BEARING_3D = -20;
+
 export interface MapAppearance {
   styleId: MapStyleId;
 }

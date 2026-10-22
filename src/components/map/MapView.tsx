@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import * as maplibregl from 'maplibre-gl';
@@ -15,7 +15,7 @@ import { Legend } from './Legend';
 import { MapSatelliteToggle } from './MapSatelliteToggle';
 import { StreetView } from './StreetView';
 import { getMapStyle } from '@/lib/map/styles';
-import { loadAppearance } from '@/lib/map/appearance';
+import { BEARING_3D, PITCH_3D, loadAppearance } from '@/lib/map/appearance';
 import { useMapAppearance } from '@/lib/map/useMapAppearance';
 import { addStandardControls } from '@/lib/map/standardControls';
 import { fitCameraToPins } from '@/lib/map/fitPins';
@@ -94,6 +94,13 @@ export function MapView() {
   }, [reports, focusReportId, router]);
 
   const { appearance, changeStyle } = useMapAppearance(mapRef);
+  // The Discovery map always opens in 3D (product decision 2026-10-22); the toggle
+  // flattens it for this visit only.
+  const [is3d, setIs3d] = useState(true);
+  const toggle3d = useCallback((next: boolean) => {
+    setIs3d(next);
+    mapRef.current?.easeTo({ pitch: next ? PITCH_3D : 0, bearing: next ? BEARING_3D : 0, duration: 900 });
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -101,8 +108,8 @@ export function MapView() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: getMapStyle(saved.styleId).style,
-      pitch: 0,
-      bearing: 0,
+      pitch: PITCH_3D,
+      bearing: BEARING_3D,
       // Opens fitted to the whole GCC extent rather than a fixed zoom level, so the
       // initial view always shows exactly the area `maxBounds` clamps panning to.
       bounds: GCC_MAX_BOUNDS,
@@ -290,9 +297,9 @@ export function MapView() {
       {/* bottom-16, not bottom-4: MapLibre's own attribution control also lives in this
           corner (bottom-right) and can grow taller than its collapsed button on first
           load, before the user's first drag collapses it — this clears that. */}
-      <div className="absolute bottom-16 right-2 z-10 flex flex-col items-end gap-2">
+      <div className="absolute bottom-16 right-2 z-10 flex flex-col items-end gap-2 max-sm:bottom-36">
         <StreetView mapRef={mapRef} />
-        <MapSatelliteToggle value={appearance.styleId} onChange={changeStyle} />
+        <MapSatelliteToggle value={appearance.styleId} onChange={changeStyle} is3d={is3d} onToggle3d={toggle3d} />
         <Legend />
       </div>
       <PinSheet report={selectedReport} onClose={() => setSelectedReport(null)} />
