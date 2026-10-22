@@ -121,7 +121,7 @@ export function useReports(bbox: BboxParams | null, includeFixed: boolean) {
       .subscribe();
 
     // An admin flag hides a report, but RLS stops postgres_changes from delivering that
-    // UPDATE (the hidden row is no longer readable), so admin_flag_reports also broadcasts
+    // UPDATE (the hidden row is no longer readable), so admin_delete_report also broadcasts
     // the id on this public topic.
     const moderation = supabase
       .channel('reports-moderation')
