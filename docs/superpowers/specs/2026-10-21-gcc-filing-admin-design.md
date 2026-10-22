@@ -169,6 +169,13 @@ drops out of the queue (see §6).
 Mobile-first, same Tailwind look as the rest of the app. All strings in `en.json`
 under `admin.*`.
 
+- **Layout (amended 2026-10-22, Jay's request):** at 768 px and wider, the queue is a
+  compact **table**. It has five columns: Report (thumbnail, issue, age, +1s), Location
+  (coordinates rounded to 6 decimal places, plus a Map link), Reporter, GCC (ID input,
+  or ID and status, with inline edit) and Actions (Mark as filed / Edit / Save, Copy all,
+  ⋯). Fixed column widths and wrapping text keep it free of sideways scrolling. The ⋯
+  button expands a details row with larger photos, single-field copy buttons, the note
+  and history. Below 768 px, the cards described here are kept.
 - **Header:** "GCC filing", plus Unfiled (n) / Filed (n) tabs. On the Filed tab, a
   status filter chip row (All + the 8 statuses).
 - **Card (one per report):**
