@@ -4,9 +4,9 @@ begin;
 select plan(5);
 
 -- Inside the test bbox (80.20-80.30, 13.00-13.10)
-insert into public.reports (category, location, gcc_status, gcc_complaint_number, gcc_road_name, landmark)
+insert into public.reports (category, location, gcc_road_name, landmark)
 values ('pothole', extensions.st_setsrid(extensions.st_makepoint(80.27, 13.06), 4326)::extensions.geography,
-        'submitted', '2026-48213', 'Arunachalam Street', 'Near Kauvery Hospital');
+        'Arunachalam Street', 'Near Kauvery Hospital');
 
 -- Outside the test bbox
 insert into public.reports (category, location)
@@ -27,10 +27,10 @@ select is(
 );
 
 select is(
-  (select row(gcc_status::text, gcc_complaint_number, gcc_road_name, landmark)::text
+  (select row(gcc_road_name, landmark)::text
    from public.reports_in_bbox(80.20, 13.00, 80.30, 13.10, false)),
-  row('submitted', '2026-48213', 'Arunachalam Street', 'Near Kauvery Hospital')::text,
-  'map pins carry the GCC status, complaint number, street and landmark'
+  row('Arunachalam Street', 'Near Kauvery Hospital')::text,
+  'map pins carry the GCC street and landmark (no GCC filing data)'
 );
 
 select is(

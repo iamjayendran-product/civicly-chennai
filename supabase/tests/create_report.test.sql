@@ -1,7 +1,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select plan(21);
+select plan(22);
 
 -- Helper: a point well inside the GCC boundary (central Chennai).
 -- lng=80.27, lat=13.06
@@ -97,6 +97,13 @@ select is(
   )),
   '9876543210',
   'report_contacts stores the given phone'
+);
+select is(
+  (select gender from public.report_contacts where report_id = (
+    select report_id from public.report_photos where storage_path = '11111111-1111-1111-1111-111111111111/contact.jpg'
+  )),
+  'female',
+  'report_contacts stores the gender (needed for manual GCC filing)'
 );
 set local role authenticated;
 
