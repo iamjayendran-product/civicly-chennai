@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { screen } from '@testing-library/react';
 import { t } from '@/lib/i18n';
-import { GCC_MAX_BOUNDS } from '@/lib/geo/serviceArea';
+import { GCC_BBOX, GCC_MAX_BOUNDS } from '@/lib/geo/serviceArea';
 import { SERVICE_AREA_MASK_LAYER_ID } from '@/lib/map/serviceAreaOverlay';
 
 vi.mock('maplibre-gl', () => {
@@ -45,8 +45,11 @@ vi.mock('@/lib/map/reportIcons', async (importOriginal) => ({
   registerReportIcons: vi.fn(),
 }));
 
+const { useReportsMock } = vi.hoisted(() => ({
+  useReportsMock: vi.fn<(...args: unknown[]) => { reports: never[]; status: string }>(() => ({ reports: [], status: 'live' })),
+}));
 vi.mock('@/lib/realtime/useReports', () => ({
-  useReports: () => ({ reports: [], status: 'live' }),
+  useReports: (...args: unknown[]) => useReportsMock(...args),
 }));
 
 import * as maplibregl from 'maplibre-gl';
@@ -72,6 +75,18 @@ describe('MapView initial viewport', () => {
     expect(options.pitch).toBe(60);
     expect(options.bearing).toBe(-20);
     expect(screen.getByRole('button', { name: t('map.style.view3d') })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('loads every report in GCC limits for the first framing, not just the tilted viewport', () => {
+    render(<MapView />);
+
+    const MapCtor = maplibregl.Map as unknown as ReturnType<typeof vi.fn>;
+    const mapInstance = MapCtor.mock.results.at(-1)!.value as { on: ReturnType<typeof vi.fn> };
+    const onLoad = mapInstance.on.mock.calls.find(([event, handler]) => event === 'load' && typeof handler === 'function')![1];
+    act(() => onLoad());
+    // A 60° tilt doesn't reach GCC's southern edge, so fetching only what's on screen
+    // would never load (or frame) the southernmost reports.
+    expect(useReportsMock).toHaveBeenLastCalledWith(GCC_BBOX, false);
   });
 
   it('flattens to 2D when 3D is switched off', () => {

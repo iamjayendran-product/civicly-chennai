@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import * as maplibregl from 'maplibre-gl';
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { GCC_MAX_BOUNDS, boundsToBboxParams, padBounds } from '@/lib/geo/serviceArea';
+import { GCC_BBOX, GCC_MAX_BOUNDS, boundsToBboxParams, padBounds } from '@/lib/geo/serviceArea';
 import { useReports, type ReportPin } from '@/lib/realtime/useReports';
 import { Filters } from './Filters';
 import { PinSheet } from './PinSheet';
@@ -124,7 +124,10 @@ export function MapView() {
     map.addControl(new maplibregl.FullscreenControl(), 'bottom-left');
 
     function updateBboxFromMap() {
-      setBbox(boundsToBboxParams(map.getBounds()));
+      // Until the pins have been framed once, load every report in GCC limits: the
+      // opening 3D tilt doesn't reach GCC's southern edge, so the visible area alone
+      // would never load (or frame) the southernmost reports.
+      setBbox(hasDroppedRef.current ? boundsToBboxParams(map.getBounds()) : { ...GCC_BBOX });
     }
 
     // 'style.load' (not 'load') fires for the first style and again after every
