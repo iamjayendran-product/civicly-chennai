@@ -7,9 +7,11 @@ select plan(17);
 -- can't change counts or ordering.
 delete from public.reports;
 
-insert into auth.users (id, instance_id, aud, role, email, is_anonymous, created_at, updated_at) values
-  ('aaaaaaaa-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'iamjayendran@gmail.com', false, now(), now()),
-  ('bbbbbbbb-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'someone@else.com', false, now(), now());
+-- No email on the fixture users: is_admin() reads only the JWT, and the real admin
+-- account may already exist locally (auth.users.email is unique).
+insert into auth.users (id, instance_id, aud, role, is_anonymous, created_at, updated_at) values
+  ('aaaaaaaa-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', false, now(), now()),
+  ('bbbbbbbb-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', false, now(), now());
 
 -- U1, U2 (no contact row), U3 (newest, with photos): open, unfiled.
 -- F1, F2: open, filed. H: hidden unfiled. X: fixed unfiled. FX: filed, then fixed.
@@ -44,12 +46,12 @@ insert into public.gcc_filing_events (report_id, complaint_id, status, actor, cr
 set local role authenticated;
 
 -- Non-admins are refused everywhere.
-set local request.jwt.claims = '{"sub":"bbbbbbbb-0000-0000-0000-000000000002","role":"authenticated","is_anonymous":false,"email":"someone@else.com"}';
+set local request.jwt.claims = '{"sub":"bbbbbbbb-0000-0000-0000-000000000002","role":"authenticated","is_anonymous":false,"email":"someone@else.com","amr":[{"method":"otp","timestamp":1}]}';
 select throws_ok($$ select * from public.admin_gcc_queue('unfiled') $$, 'P0001', 'AUTH_REQUIRED', 'a non-admin cannot read the queue');
 select throws_ok($$ select * from public.admin_gcc_counts() $$, 'P0001', 'AUTH_REQUIRED', 'a non-admin cannot read the counts');
 select throws_ok($$ select * from public.admin_gcc_history('00000000-0000-0000-0000-0000000000f2') $$, 'P0001', 'AUTH_REQUIRED', 'a non-admin cannot read history');
 
-set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false,"email":"iamjayendran@gmail.com"}';
+set local request.jwt.claims = '{"sub":"aaaaaaaa-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false,"email":"iamjayendran@gmail.com","amr":[{"method":"otp","timestamp":1}]}';
 
 select throws_ok($$ select * from public.admin_gcc_queue('bogus') $$, 'P0001', 'INVALID_INPUT', 'an unknown tab is rejected');
 
