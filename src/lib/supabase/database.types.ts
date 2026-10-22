@@ -49,6 +49,85 @@ export type Database = {
         }
         Relationships: []
       }
+      gcc_filing_events: {
+        Row: {
+          actor: string
+          complaint_id: string
+          created_at: string
+          id: number
+          note: string | null
+          report_id: string
+          status: Database["public"]["Enums"]["gcc_status"]
+        }
+        Insert: {
+          actor: string
+          complaint_id: string
+          created_at?: string
+          id?: number
+          note?: string | null
+          report_id: string
+          status: Database["public"]["Enums"]["gcc_status"]
+        }
+        Update: {
+          actor?: string
+          complaint_id?: string
+          created_at?: string
+          id?: number
+          note?: string | null
+          report_id?: string
+          status?: Database["public"]["Enums"]["gcc_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gcc_filing_events_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gcc_filings: {
+        Row: {
+          complaint_id: string
+          filed_at: string
+          filed_by: string
+          note: string | null
+          report_id: string
+          status: Database["public"]["Enums"]["gcc_status"]
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          complaint_id: string
+          filed_at?: string
+          filed_by: string
+          note?: string | null
+          report_id: string
+          status?: Database["public"]["Enums"]["gcc_status"]
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          complaint_id?: string
+          filed_at?: string
+          filed_by?: string
+          note?: string | null
+          report_id?: string
+          status?: Database["public"]["Enums"]["gcc_status"]
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gcc_filings_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: true
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_events: {
         Row: {
           action: string
@@ -222,6 +301,67 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_gcc_counts: {
+        Args: never
+        Returns: {
+          filed: number
+          unfiled: number
+        }[]
+      }
+      admin_gcc_history: {
+        Args: { p_report_id: string }
+        Returns: {
+          complaint_id: string
+          created_at: string
+          note: string
+          status: Database["public"]["Enums"]["gcc_status"]
+        }[]
+      }
+      admin_gcc_queue: {
+        Args: {
+          p_before?: string
+          p_limit?: number
+          p_status?: Database["public"]["Enums"]["gcc_status"]
+          p_tab: string
+        }
+        Returns: {
+          category: Database["public"]["Enums"]["report_category"]
+          complaint_id: string
+          created_at: string
+          filed_at: string
+          filing_updated_at: string
+          gcc_note: string
+          gcc_status: Database["public"]["Enums"]["gcc_status"]
+          id: string
+          lat: number
+          lng: number
+          note: string
+          photo_paths: string[]
+          reporter_name: string
+          reporter_phone: string
+          sort_key: string
+          subtype: Database["public"]["Enums"]["report_subtype"]
+          upvote_count: number
+        }[]
+      }
+      admin_save_gcc_filing: {
+        Args: {
+          p_complaint_id: string
+          p_note?: string
+          p_report_id: string
+          p_status?: Database["public"]["Enums"]["gcc_status"]
+        }
+        Returns: {
+          complaint_id: string
+          duplicate_of: string[]
+          filed_at: string
+          note: string
+          report_id: string
+          status: Database["public"]["Enums"]["gcc_status"]
+          updated_at: string
+        }[]
+      }
+      admin_whoami: { Args: never; Returns: boolean }
       confirm_same_issue: { Args: { p_report_id: string }; Returns: undefined }
       create_report: {
         Args: {
@@ -237,6 +377,7 @@ export type Database = {
         }
         Returns: string
       }
+      is_admin: { Args: never; Returns: boolean }
       nearby_reports: {
         Args: {
           p_category: Database["public"]["Enums"]["report_category"]
@@ -273,6 +414,15 @@ export type Database = {
       }
     }
     Enums: {
+      gcc_status:
+        | "registered"
+        | "forwarded"
+        | "processing"
+        | "completed"
+        | "rejected"
+        | "reopened"
+        | "withdrawn"
+        | "not_completed"
       report_category: "pothole" | "waterlogging" | "other"
       report_status: "open" | "fixed"
       report_subtype:
@@ -413,6 +563,16 @@ export const Constants = {
   },
   public: {
     Enums: {
+      gcc_status: [
+        "registered",
+        "forwarded",
+        "processing",
+        "completed",
+        "rejected",
+        "reopened",
+        "withdrawn",
+        "not_completed",
+      ],
       report_category: ["pothole", "waterlogging", "other"],
       report_status: ["open", "fixed"],
       report_subtype: [
