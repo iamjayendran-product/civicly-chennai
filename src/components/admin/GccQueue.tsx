@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@/lib/i18n';
 import { gccApi, GCC_STATUSES, type GccStatus, type QueueRow } from '@/lib/admin/gccApi';
 import { GccReportCard } from './GccReportCard';
@@ -27,6 +27,12 @@ export function GccQueue() {
   const [toast, setToast] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const loadingMore = useRef(false);
+  const viewKey = `${tab}|${status ?? ''}|${reloadKey}`;
+  const currentView = useRef(viewKey);
+  useEffect(() => {
+    currentView.current = viewKey;
+  }, [viewKey]);
 
   const refreshCounts = useCallback(() => {
     gccApi.counts().then(setCounts, () => setFailed(true));
@@ -63,13 +69,22 @@ export function GccQueue() {
   }
 
   async function loadMore() {
-    if (!rows || rows.length === 0) return;
+    if (!rows || rows.length === 0 || loadingMore.current) return;
+    loadingMore.current = true;
+    const view = viewKey;
     try {
       const page = await gccApi.queue(queueArgs(tab, status, rows[rows.length - 1].sort_key));
-      setRows([...rows, ...page]);
+      // A tab or filter switch while this was in flight makes the page stale.
+      if (currentView.current !== view) return;
+      setRows((current) => {
+        const seen = new Set((current ?? []).map((r) => r.id));
+        return [...(current ?? []), ...page.filter((r) => !seen.has(r.id))];
+      });
       setHasMore(page.length === PAGE_SIZE);
     } catch {
       setFailed(true);
+    } finally {
+      loadingMore.current = false;
     }
   }
 

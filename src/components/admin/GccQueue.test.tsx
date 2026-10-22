@@ -74,6 +74,36 @@ describe('GccQueue', () => {
     expect(await screen.findByText('r20')).toBeInTheDocument();
   });
 
+  it('drops a Load more response that arrives after switching tabs', async () => {
+    const page = Array.from({ length: 20 }, (_, i) => makeRow(i));
+    let resolveMore: (rows: QueueRow[]) => void = () => {};
+    queue
+      .mockResolvedValueOnce(page)
+      .mockReturnValueOnce(new Promise<QueueRow[]>((r) => (resolveMore = r)))
+      .mockResolvedValueOnce([{ ...makeRow(50), complaint_id: '2026-111AAA' }]);
+    render(<GccQueue />);
+    fireEvent.click(await screen.findByRole('button', { name: t('admin.loadMore') }));
+    fireEvent.click(screen.getByRole('tab', { name: t('admin.tab.filed', { count: 2 }) }));
+    expect(await screen.findByText('r50')).toBeInTheDocument();
+
+    resolveMore([makeRow(20)]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('r20')).not.toBeInTheDocument();
+    expect(screen.queryByText('r0')).not.toBeInTheDocument();
+  });
+
+  it('ignores a second Load more tap while the first is in flight', async () => {
+    const page = Array.from({ length: 20 }, (_, i) => makeRow(i));
+    queue.mockResolvedValueOnce(page).mockResolvedValue([makeRow(20)]);
+    render(<GccQueue />);
+    const button = await screen.findByRole('button', { name: t('admin.loadMore') });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(await screen.findByText('r20')).toBeInTheDocument();
+    expect(queue).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByText('r20')).toHaveLength(1);
+  });
+
   it('moves a saved report out of unfiled and refreshes the counts', async () => {
     queue.mockResolvedValue([makeRow(1), makeRow(2)]);
     render(<GccQueue />);

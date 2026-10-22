@@ -67,7 +67,11 @@ single-admin **manual GCC filing log** is in scope; see
 - **`public.is_admin()`** (`security definer`, `stable`, `search_path = ''`) returns
   true only when **both** of these hold:
   - `(auth.jwt() ->> 'is_anonymous')::boolean is not true`;
-  - `lower(btrim(auth.jwt() ->> 'email')) = 'iamjayendran@gmail.com'`.
+  - `lower(btrim(auth.jwt() ->> 'email')) = 'iamjayendran@gmail.com'`;
+  - the JWT `amr` claim includes method `otp` (or `magiclink`). In other words, the
+    session came from a magic link, which proves inbox access. Without this, anyone
+    could sign up with a password for the admin address while email confirmation is off
+    (added after the final review, 2026-10-22).
 
   Every admin RPC begins with `if not public.is_admin() then raise exception
   'AUTH_REQUIRED' using errcode = 'P0001'; end if;`.
