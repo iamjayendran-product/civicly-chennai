@@ -28,6 +28,22 @@ Alternatively point `.env.local` at a hosted Supabase dev project.
 | `npm run db:start` / `db:reset` / `db:test` | Local Supabase, migrations + seed, pgTAP |
 | `npm run db:types` | Regenerate Supabase TypeScript types |
 
+## Admin access (GCC filing log)
+
+`/admin` is the private queue for filing reports with GCC by hand and recording the GCC
+complaint ID. Only `iamjayendran@gmail.com` is an admin; it's hard-coded in
+`public.is_admin()`, so changing it means a new migration.
+
+- **Sign in once per device** with an email magic link: enter the email on `/admin`, then
+  open the emailed link **in the same browser** (the PKCE verifier lives there). The
+  session is remembered afterwards.
+- **Local:** emails land in the Supabase mail inbox at http://127.0.0.1:54324. The
+  `/admin` redirect URLs are already allowed in `supabase/config.toml` (restart Supabase
+  after changing auth config).
+- **Hosted:** add `https://<your-domain>/admin` under Authentication → URL Configuration →
+  Redirect URLs. The default email sender is rate-limited to a few emails an hour, which
+  is fine for one admin.
+
 ## Deployment
 
 Deployed on Vercel (project name: `civicly-chennai`), backed by a hosted Supabase
