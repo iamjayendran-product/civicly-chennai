@@ -1,103 +1,49 @@
 'use client';
 
-import { useState } from 'react';
 import { t } from '@/lib/i18n';
-import { gccApi, GccApiError, GCC_STATUSES, type GccStatus, type HistoryRow, type QueueRow } from '@/lib/admin/gccApi';
-import { looksLikeGccComplaintId, normaliseComplaintId } from '@/lib/admin/complaintIdFormat';
+import { GCC_STATUSES, type GccStatus, type QueueRow } from '@/lib/admin/gccApi';
 import { formatShortDate } from '@/lib/admin/dates';
+import { useGccFiling, type OnSaved } from './useGccFiling';
 
-export interface SavedInfo {
-  duplicateOf: string[];
-}
+export type { SavedInfo } from './useGccFiling';
 
 export interface GccFilingFormProps {
   row: QueueRow;
-  onSaved: (row: QueueRow, info: SavedInfo) => void;
+  onSaved: OnSaved;
 }
 
-function errorMessage(error: unknown): string {
-  const code = error instanceof GccApiError ? error.code : 'UNKNOWN';
-  return code === 'AUTH_REQUIRED' || code === 'INVALID_INPUT' ? t(`admin.errors.${code}`) : t('admin.errors.UNKNOWN');
-}
-
-const inputClass = 'mt-1 w-full rounded-lg border border-line bg-background px-3 py-2 text-sm';
-const primaryButton = 'rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
-const secondaryButton = 'rounded-full border border-line px-4 py-2 text-sm';
+export const inputClass = 'mt-1 w-full rounded-lg border border-line bg-background px-3 py-2 text-sm';
+export const primaryButton = 'rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50';
+export const secondaryButton = 'rounded-full border border-line px-4 py-2 text-sm';
 
 export function GccFilingForm({ row, onSaved }: GccFilingFormProps) {
-  const isFiled = row.complaint_id !== null;
-  const [editing, setEditing] = useState(!isFiled);
-  const [complaintId, setComplaintId] = useState(row.complaint_id ?? '');
-  const [status, setStatus] = useState<GccStatus>(row.gcc_status ?? 'registered');
-  const [note, setNote] = useState(row.gcc_note ?? '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [duplicateCount, setDuplicateCount] = useState(0);
-  const [history, setHistory] = useState<HistoryRow[] | null>(null);
-
-  const trimmedId = complaintId.trim();
-  const showFormatWarning = trimmedId !== '' && !looksLikeGccComplaintId(normaliseComplaintId(trimmedId));
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      const args: Parameters<typeof gccApi.save>[0] = { reportId: row.id, complaintId: trimmedId, status };
-      if (note.trim() !== '') args.note = note.trim();
-      const info = await gccApi.save(args);
-      const now = new Date().toISOString();
-      const saved: QueueRow = {
-        ...row,
-        complaint_id: normaliseComplaintId(trimmedId),
-        gcc_status: status,
-        gcc_note: note.trim() || null,
-        filed_at: row.filed_at ?? now,
-        filing_updated_at: now,
-        sort_key: now,
-      };
-      setDuplicateCount(info.duplicateOf.length);
-      setHistory(null);
-      if (isFiled) setEditing(false);
-      onSaved(saved, info);
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function toggleHistory() {
-    if (history) {
-      setHistory(null);
-      return;
-    }
-    try {
-      setHistory(await gccApi.history(row.id));
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
+  const f = useGccFiling(row, onSaved);
 
   return (
     <div className="mt-3 border-t border-line pt-3">
-      {editing ? (
-        <form onSubmit={submit} className="space-y-2">
+      {f.editing ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void f.save();
+          }}
+          className="space-y-2"
+        >
           <label className="block text-xs text-muted">
             {t('admin.form.complaintId')}
             <input
-              value={complaintId}
-              onChange={(e) => setComplaintId(e.target.value)}
+              value={f.complaintId}
+              onChange={(e) => f.setComplaintId(e.target.value)}
               placeholder={t('admin.form.complaintIdPlaceholder')}
               autoCapitalize="characters"
               className={inputClass}
             />
           </label>
-          {showFormatWarning && <p className="text-xs text-warning">{t('admin.form.formatWarning')}</p>}
-          {isFiled && (
+          {f.showFormatWarning && <p className="text-xs text-warning">{t('admin.form.formatWarning')}</p>}
+          {f.isFiled && (
             <label className="block text-xs text-muted">
               {t('admin.form.status')}
-              <select value={status} onChange={(e) => setStatus(e.target.value as GccStatus)} className={inputClass}>
+              <select value={f.status} onChange={(e) => f.setStatus(e.target.value as GccStatus)} className={inputClass}>
                 {GCC_STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {t(`admin.gccStatus.${s}`)}
@@ -108,14 +54,14 @@ export function GccFilingForm({ row, onSaved }: GccFilingFormProps) {
           )}
           <label className="block text-xs text-muted">
             {t('admin.form.note')}
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} rows={2} className={inputClass} />
+            <textarea value={f.note} onChange={(e) => f.setNote(e.target.value)} maxLength={1000} rows={2} className={inputClass} />
           </label>
           <div className="flex gap-2">
-            <button type="submit" disabled={trimmedId === '' || saving} className={primaryButton}>
-              {isFiled ? t('admin.form.save') : t('admin.form.markFiled')}
+            <button type="submit" disabled={!f.canSave} className={primaryButton}>
+              {f.isFiled ? t('admin.form.save') : t('admin.form.markFiled')}
             </button>
-            {isFiled && (
-              <button type="button" onClick={() => setEditing(false)} className={secondaryButton}>
+            {f.isFiled && (
+              <button type="button" onClick={() => f.setEditing(false)} className={secondaryButton}>
                 {t('admin.form.cancel')}
               </button>
             )}
@@ -131,15 +77,23 @@ export function GccFilingForm({ row, onSaved }: GccFilingFormProps) {
           </p>
           {row.gcc_note && <p className="text-xs">{row.gcc_note}</p>}
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={() => setEditing(true)} className={secondaryButton}>
+            <button type="button" onClick={() => f.setEditing(true)} className={secondaryButton}>
               {t('admin.form.edit')}
             </button>
-            <button type="button" onClick={toggleHistory} className={secondaryButton}>
+            <button type="button" onClick={f.toggleHistory} className={secondaryButton}>
               {t('admin.form.history')}
             </button>
           </div>
         </div>
       )}
+      <FilingFeedback duplicateCount={f.duplicateCount} error={f.error} history={f.history} />
+    </div>
+  );
+}
+
+export function FilingFeedback({ duplicateCount, error, history }: Pick<ReturnType<typeof useGccFiling>, 'duplicateCount' | 'error' | 'history'>) {
+  return (
+    <>
       {duplicateCount > 0 && <p className="mt-2 text-xs text-warning">{t('admin.form.duplicate', { count: duplicateCount })}</p>}
       {error && <p role="alert" className="mt-2 text-xs text-red-600">{error}</p>}
       {history && (
@@ -152,6 +106,6 @@ export function GccFilingForm({ row, onSaved }: GccFilingFormProps) {
           ))}
         </ol>
       )}
-    </div>
+    </>
   );
 }

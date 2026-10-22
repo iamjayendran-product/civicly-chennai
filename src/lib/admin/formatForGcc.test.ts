@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDescription, formatAll, mapsUrl } from './formatForGcc';
+import { formatDescription, formatAll, formatCoords, mapsUrl } from './formatForGcc';
 import type { QueueRow } from './gccApi';
 
 function row(overrides: Partial<QueueRow> = {}): QueueRow {
@@ -31,6 +31,12 @@ describe('mapsUrl', () => {
   });
 });
 
+describe('formatCoords', () => {
+  it('rounds to 6 decimal places and drops trailing zeros', () => {
+    expect(formatCoords(13.0553000496103, 80.0538238281658)).toBe('13.0553, 80.053824');
+  });
+});
+
 describe('formatDescription', () => {
   it('joins the category label and the note', () => {
     expect(formatDescription(row())).toBe('Pothole — Near bus stop');
@@ -47,6 +53,11 @@ describe('formatAll', () => {
     expect(formatAll(r, mapsUrl(r.lat, r.lng))).toBe(
       ['Pothole — Near bus stop', '13.06, 80.27', 'https://maps.google.com/?q=13.06,80.27', 'Priya', '9876543210'].join('\n'),
     );
+  });
+
+  it('uses rounded coordinates', () => {
+    const r = row({ lat: 13.0553000496103, lng: 80.0538238281658 });
+    expect(formatAll(r, 'x').split('\n')[1]).toBe('13.0553, 80.053824');
   });
 
   it('shows a dash for a missing name or phone', () => {

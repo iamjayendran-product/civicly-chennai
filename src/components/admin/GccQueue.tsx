@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@/lib/i18n';
 import { gccApi, GCC_STATUSES, type GccStatus, type QueueRow } from '@/lib/admin/gccApi';
 import { GccReportCard } from './GccReportCard';
+import { GccTable } from './GccTable';
+import { useMediaQuery } from './useMediaQuery';
 import type { SavedInfo } from './GccFilingForm';
 
 type Tab = 'unfiled' | 'filed';
@@ -27,6 +29,7 @@ export function GccQueue() {
   const [toast, setToast] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const wide = useMediaQuery('(min-width: 768px)');
   const loadingMore = useRef(false);
   const viewKey = `${tab}|${status ?? ''}|${reloadKey}`;
   const currentView = useRef(viewKey);
@@ -105,7 +108,7 @@ export function GccQueue() {
     `shrink-0 rounded-full border px-3 py-1 text-xs ${active ? 'border-primary bg-primary/10 text-primary' : 'border-line text-muted'}`;
 
   return (
-    <div className="mx-auto max-w-xl space-y-3 p-4">
+    <div className={`mx-auto space-y-3 p-4 ${wide ? 'max-w-7xl' : 'max-w-xl'}`}>
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">{t('admin.title')}</h1>
         <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="text-sm text-primary">
@@ -113,7 +116,7 @@ export function GccQueue() {
         </button>
       </header>
 
-      <div role="tablist" className="flex gap-2">
+      <div role="tablist" className={`flex gap-2 ${wide ? 'max-w-md' : ''}`}>
         <button role="tab" aria-selected={tab === 'unfiled'} onClick={() => switchTab('unfiled')} className={tabClass(tab === 'unfiled')}>
           {t('admin.tab.unfiled', { count: counts?.unfiled ?? '…' })}
         </button>
@@ -141,12 +144,16 @@ export function GccQueue() {
         <p className="py-8 text-center text-sm text-muted">{t(tab === 'unfiled' ? 'admin.empty.unfiled' : 'admin.empty.filed')}</p>
       )}
 
-      <div className="space-y-3">
-        {rows?.map((row) => <GccReportCard key={row.id} row={row} onSaved={handleSaved} />)}
-      </div>
+      {wide ? (
+        rows && rows.length > 0 && <GccTable rows={rows} onSaved={handleSaved} />
+      ) : (
+        <div className="space-y-3">
+          {rows?.map((row) => <GccReportCard key={row.id} row={row} onSaved={handleSaved} />)}
+        </div>
+      )}
 
       {hasMore && (
-        <button type="button" onClick={loadMore} className="w-full rounded-full border border-line py-2 text-sm">
+        <button type="button" onClick={loadMore} className="mx-auto block w-full max-w-md rounded-full border border-line py-2 text-sm">
           {t('admin.loadMore')}
         </button>
       )}

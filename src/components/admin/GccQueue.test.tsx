@@ -23,7 +23,23 @@ vi.mock('./GccReportCard', () => ({
   ),
 }));
 
+vi.mock('./GccTable', () => ({
+  GccTable: ({ rows }: { rows: QueueRow[] }) => <table data-testid="table">{rows.length}</table>,
+}));
+
 import { GccQueue } from './GccQueue';
+
+function setWide(wide: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+      matches: wide && query === '(min-width: 768px)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  });
+}
 
 function makeRow(i: number): QueueRow {
   const ts = new Date(Date.UTC(2026, 9, 20, 0, 0, 0) - i * 60000).toISOString();
@@ -35,6 +51,7 @@ function makeRow(i: number): QueueRow {
 }
 
 beforeEach(() => {
+  setWide(false);
   queue.mockReset();
   counts.mockReset();
   counts.mockResolvedValue({ unfiled: 3, filed: 2 });
@@ -111,6 +128,21 @@ describe('GccQueue', () => {
     await waitFor(() => expect(screen.queryByText('r1')).not.toBeInTheDocument());
     expect(screen.getByText(t('admin.form.saved', { id: '2026-736JEJ' }))).toBeInTheDocument();
     expect(counts).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a table instead of cards on wide screens', async () => {
+    setWide(true);
+    queue.mockResolvedValue([makeRow(1), makeRow(2)]);
+    render(<GccQueue />);
+    expect(await screen.findByTestId('table')).toHaveTextContent('2');
+    expect(screen.queryAllByTestId('card')).toHaveLength(0);
+  });
+
+  it('keeps cards on phones', async () => {
+    queue.mockResolvedValue([makeRow(1)]);
+    render(<GccQueue />);
+    expect(await screen.findByTestId('card')).toBeInTheDocument();
+    expect(screen.queryByTestId('table')).not.toBeInTheDocument();
   });
 
   it('says when there is nothing left to file', async () => {

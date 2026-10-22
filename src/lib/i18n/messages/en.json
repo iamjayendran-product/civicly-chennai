@@ -122,5 +122,13 @@
   "admin.empty.filed": "No filed reports yet.",
   "admin.errors.AUTH_REQUIRED": "Your session isn't an admin session. Sign in again.",
   "admin.errors.INVALID_INPUT": "Check the complaint ID (3–40 characters) and note (up to 1000).",
-  "admin.errors.UNKNOWN": "Something went wrong. Please try again."
+  "admin.errors.UNKNOWN": "Something went wrong. Please try again.",
+  "admin.table.report": "Report",
+  "admin.table.location": "Location",
+  "admin.table.reporter": "Reporter",
+  "admin.table.gcc": "GCC",
+  "admin.table.actions": "Actions",
+  "admin.table.map": "Map",
+  "admin.table.more": "More details",
+  "admin.table.less": "Fewer details"
 }

@@ -2,7 +2,7 @@
 
 import { t } from '@/lib/i18n';
 import { getBrowserClient } from '@/lib/supabase/browser';
-import { formatAll, formatDescription, mapsUrl } from '@/lib/admin/formatForGcc';
+import { formatAll, formatCoords, formatDescription, mapsUrl } from '@/lib/admin/formatForGcc';
 import { formatRelative } from '@/lib/admin/dates';
 import { CopyButton } from './CopyButton';
 import { GccFilingForm, type GccFilingFormProps } from './GccFilingForm';
@@ -11,7 +11,7 @@ export function GccReportCard({ row, onSaved }: GccFilingFormProps) {
   const storage = getBrowserClient().storage.from('report-photos');
   const maps = mapsUrl(row.lat, row.lng);
   const description = formatDescription(row);
-  const coords = `${row.lat}, ${row.lng}`;
+  const coords = formatCoords(row.lat, row.lng);
   const dash = t('admin.card.noValue');
 
   return (
