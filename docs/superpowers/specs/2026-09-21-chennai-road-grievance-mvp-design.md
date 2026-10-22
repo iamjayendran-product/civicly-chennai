@@ -264,6 +264,22 @@ create index on rate_events (ip_hash, action, created_at desc);
 
 "Non-anonymous" = `(auth.jwt() ->> 'is_anonymous')::boolean is not true`.
 
+**GCC filing log (amended 2026-10-21; see `2026-10-21-gcc-filing-admin-design.md`).**
+Admin-only RPCs, each gated by `is_admin()` (non-anonymous JWT whose email is the single
+hard-coded admin, `iamjayendran@gmail.com`):
+
+| Function | Auth | Purpose |
+|---|---|---|
+| `is_admin()` / `admin_whoami()` | any | Whether the caller is the admin (never raises). |
+| `admin_gcc_queue(tab, status, limit, before)` | admin | Unfiled / Filed queue of open, visible reports with reporter contact, photo paths and filing fields. Keyset-paginated. |
+| `admin_gcc_counts()` | admin | Tab counts. |
+| `admin_save_gcc_filing(report_id, complaint_id, status, note)` | admin | Upsert the GCC complaint ID / status / note, append history, return duplicates. |
+| `admin_gcc_history(report_id)` | admin | Filing history, oldest first. |
+
+Tables `gcc_filings` (one row per filed report) and `gcc_filing_events` (append-only
+history) are default-deny: RLS on, no policies, no grants. Nothing about GCC filing is
+exposed on `reports`, `reports_in_bbox` or Realtime.
+
 IP hash: the Next.js middleware isn't in the RPC path, so the client IP is read inside
 Postgres from `request.headers` (PostgREST exposes `x-forwarded-for` via
 `current_setting('request.headers', true)`) and hashed with a server-side salt stored in
@@ -295,11 +311,13 @@ src/
     report/new/page.tsx      # report flow
     r/[id]/page.tsx          # public report page (SSR + OG)
     me/page.tsx              # my reports
+    admin/page.tsx           # GCC filing log (single admin, magic-link sign-in)
     api/push/report-fixed/route.ts
     manifest.ts              # PWA manifest
   components/
     map/                     # MapView, ReportLayer, PinSheet, Filters
     report/                  # CategoryPicker, PhotoCapture, LocationPicker, DuplicateList
+    admin/                   # AdminApp (gate), GccQueue, GccReportCard, GccFilingForm, CopyButton
     auth/                    # SessionProvider, GoogleOneTap, SignInPrompt
   lib/
     supabase/                # browser & server clients, generated types
